@@ -4,4 +4,4 @@ from .monte_carlo import MonteCarlo
 from .sarsa import SARSA
 from .q_learning import QLearning
 
-from .agent import *
+from .agent_v0 import *

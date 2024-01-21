@@ -8,7 +8,7 @@ from .rendering import CVRender
 
 class SnakeEnv(gym.Env):
     def __init__(self, size=10, num_ladders=15, num_targets=3):
-        print('Snake environment')
+        print('\n-------------Snake environment-------------')
         self.size = size
         print('>>> Size: {}x{}'.format(size, size))
         self.observation_space = Discrete(size * size)

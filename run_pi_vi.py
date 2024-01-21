@@ -11,9 +11,9 @@ from train import test
 
 def train(**kwargs):
     env = SnakeEnv(**kwargs)
+    env.reset()
 
     print('\n-------------Policy Iteration-------------')
-    env.reset()
     start = time.time()
     pi = PolicyIteration(env).update()
     print('Time consumption: ', time.time() - start)
