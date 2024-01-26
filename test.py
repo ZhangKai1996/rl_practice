@@ -3,10 +3,10 @@ import time
 import numpy as np
 
 from env import SnakeEnv
-from algo import PolicyIteration
+from algo.basic import PolicyIteration
 
 
-def test(env, policy, algo='algo', max_iter=100, **kwargs):
+def test(env, policy, name='algo', max_len=100, **kwargs):
     state, done = env.reset(reuse=True, **kwargs), False
     return_val = 0.0
     step = 0
@@ -17,26 +17,86 @@ def test(env, policy, algo='algo', max_iter=100, **kwargs):
         return_val += reward
         step += 1
         state = next_state
-        env.render(mode=algo+': {}/{}'.format(step, max_iter))
-        if step >= max_iter:
+        env.render(mode=name + ': {}/{}'.format(step, max_len))
+        if step >= max_len:
             break
-
     print('Total reward:', return_val)
     print('Total step:', step)
     return step, return_val, int(done)
 
 
-def train():
-    env = SnakeEnv(size=20, num_targets=1)
-    env.reset()
-    print('\n-------------Policy Iteration-------------')
+def train(env, algo, max_len=100, **kwargs):
+    print('\n------------------------------------------')
+    env.reset(reuse=True, verbose=True)
+    algo = algo(env, **kwargs)
+    print('Algorithm: ', algo.name)
     start = time.time()
-    pi = PolicyIteration(env).update()
-    print('Time consumption: ', time.time()-start)
-    test(env, pi, algo='Policy Iteration')
+    pi = algo.update()
+    delta = time.time() - start
+    print('Time consumption: ', delta)
+    test(env, pi, name=algo.name, max_len=max_len)
     print('------------------------------------------')
+    return delta
+
+
+def main():
+    # Environment
+    env = SnakeEnv(size=20, num_ladders=0, num_targets=1)
+    # Parameters
+    alpha = 0.01
+    gamma = 0.95
+    epsilon = 0.5
+    max_len = 100
+    eval_iter = 128
+    improve_iter = 1000
+    # algo: PI, VI
+    kwargs = {
+        'gamma': gamma,
+        'max_len': max_len,
+        'eval_iter': eval_iter,
+        'improve_iter': improve_iter
+    }
+    delta_list = []
+
+    env.x, env.y = 10.0, -1.0
+    delta = train(env, algo=PolicyIteration, **kwargs)
+    delta_list.append(delta)
+
+    env.x, env.y = 5.0, -1.0
+    delta = train(env, algo=PolicyIteration, **kwargs)
+    delta_list.append(delta)
+
+    env.x, env.y = 0.0, -1.0
+    delta = train(env, algo=PolicyIteration, **kwargs)
+    delta_list.append(delta)
+
+    env.x, env.y = 0.5, -1.0
+    delta = train(env, algo=PolicyIteration, **kwargs)
+    delta_list.append(delta)
+
+    env.x, env.y = 0.5, -0.5
+    delta = train(env, algo=PolicyIteration, **kwargs)
+    delta_list.append(delta)
+
+    env.x, env.y = 0.0, -2.0
+    delta = train(env, algo=PolicyIteration, **kwargs)
+    delta_list.append(delta)
+
     env.close()
+    return np.array(delta_list)
 
 
 if __name__ == '__main__':
-    train()
+    delta_array = []
+    for episode in range(100):
+        print('{}/{}'.format(episode+1, 2))
+        delta_array.append(main())
+    delta_array = np.array(delta_array)
+
+    import matplotlib.pyplot as plt
+    fig, axes = plt.subplots(6, 1, sharex=True)
+    for i in range(6):
+        axes[i].hist(delta_array[:, i])
+
+    plt.savefig('figs/record.pdf')
+    plt.show()

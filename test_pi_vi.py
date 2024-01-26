@@ -37,7 +37,14 @@ def train(**kwargs):
     ]
 
 
-def plot(record_array):
+if __name__ == '__main__':
+    size = 20
+    num_targets = 2
+
+    records = []
+    for _ in range(1):
+        records.append(train(size=size, num_targets=num_targets))
+    record_array = np.array(records)
     print(record_array.shape)
     labels = ["PI", "VI"]
 
@@ -53,7 +60,7 @@ def plot(record_array):
         num_step = 5
     else:
         num_step = 10
-    bins_step = np.linspace(0, max_step, num_step+1)
+    bins_step = np.linspace(0, max_step, num_step)
     print(bins_step)
 
     for i, label in enumerate(labels):
@@ -79,14 +86,3 @@ def plot(record_array):
 
     plt.savefig('figs/fig_p_{}_{}.png'.format(size, num_targets))
     plt.show()
-
-
-if __name__ == '__main__':
-    size = 20
-    num_targets = 2
-
-    records = []
-    for _ in range(1):
-        records.append(train(size=size, num_targets=num_targets))
-    plot(record_array=np.array(records))
-

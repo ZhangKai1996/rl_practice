@@ -1,2 +1,2 @@
 from .snake import SnakeEnv
-from .rendering import *
+from .visual import *

@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from env import SnakeEnv
-from algo import MonteCarlo, SARSA, QLearning
+from algo.value_based import MonteCarlo, SARSA, QLearning
 
 from train import test
 
@@ -30,7 +30,7 @@ def train(**kwargs):
     print('\n---------------SARSA---------------')
     env.reset(reuse=True)
     start = time.time()
-    pi = SARSA(env, epsilon=0.5, max_len=100, lamd=0.0).update(
+    pi = SARSA(env, epsilon=0.5, max_len=100, lamd=0.8).update(
         eval_iter=eval_iter,
         improve_iter=improve_iter,
         verbose=False
@@ -60,7 +60,14 @@ def train(**kwargs):
     ]
 
 
-def plot(record_array):
+if __name__ == '__main__':
+    size = 10
+    num_targets = 3
+
+    records = []
+    for _ in range(1):
+        records.append(train(size=size, num_targets=num_targets))
+    record_array = np.array(records)
     print(record_array.shape)
     labels = ["MC", "SARSA", "QL"]
 
@@ -68,7 +75,6 @@ def plot(record_array):
 
     # Plot Step
     rec_step_array = record_array[:, :3]
-
     max_step = (int(np.max(rec_step_array) // 5) + 1) * 5
     if max_step > 50:
         num_step = 20
@@ -100,15 +106,5 @@ def plot(record_array):
         ax.tick_params(labelsize=13)
         ax.legend()
 
-    plt.savefig('fig_{}_{}.png'.format(size, num_targets))
+    plt.savefig('figs/mc_td_{}_{}.png'.format(size, num_targets))
     plt.show()
-
-
-if __name__ == '__main__':
-    size = 20
-    num_targets = 3
-
-    records = []
-    for _ in range(1):
-        records.append(train(size=size, num_targets=num_targets))
-    plot(record_array=np.array(records))

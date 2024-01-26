@@ -1,18 +1,18 @@
-import gym
-from gym.spaces import Discrete
 import numpy as np
+import gym
 import numpy.random
+from gym.spaces import Discrete
 
-from .rendering import CVRender
+from .visual import CVRender
 
 
 class SnakeEnv(gym.Env):
     def __init__(self, size=10, num_ladders=15, num_targets=3):
-        print('\n-------------Snake environment-------------')
+        print('Snake environment')
         self.size = size
         print('>>> Size: {}x{}'.format(size, size))
         self.observation_space = Discrete(size * size)
-        self.action_space = Discrete(4)
+        self.action_space = Discrete(5)
 
         self.num_ladders = num_ladders
         self.num_targets = num_targets
@@ -22,12 +22,16 @@ class SnakeEnv(gym.Env):
         self.records = []
         self.targets, self.target_checker = [], []
         self.ladders = {}
+        self.x = 10.0
+        self.y = -1.0
 
         self.env_info = ''
         self.cv_render = None
+        self.reset(verbose=True)
 
     def __initialize(self, num_states):
         states = list(range(num_states))
+
         # Generate ladders
         ladders = {}
         for i in range(self.num_ladders):
@@ -38,7 +42,7 @@ class SnakeEnv(gym.Env):
             later_prob = np.random.random(num_later)
             later_prob /= sum(later_prob)
             ladders[former] = [later_list, later_prob]
-        print('>>> Ladders')
+        print('>>> Ladders: ', self.num_ladders)
         for i, (key, values) in enumerate(ladders.items()):
             [values1, values2] = values
             print(
@@ -54,10 +58,9 @@ class SnakeEnv(gym.Env):
                 targets.append(state)
             if len(targets) >= self.num_targets:
                 break
-        print('>>> Targets: ', '-->'.join([str(v) for v in targets]))
         return ladders, targets
 
-    def reset(self, reuse=False, verbose=True, **kwargs):
+    def reset(self, reuse=False, verbose=False, **kwargs):
         if not reuse:
             num_states = self.observation_space.n
             self.ladders, self.targets = self.__initialize(num_states)
@@ -70,12 +73,14 @@ class SnakeEnv(gym.Env):
             self.records = []
         self.target_checker = self.targets[:]
         if verbose:
+            print('>>> Targets: ', '-->'.join([str(v) for v in self.targets]))
             print('>>> Start: ', self.pos, '(0-up, 1-down, 2-right, 3-left, 4-no move)')
         self.records.append((self.pos, ''))
         return self.pos
 
     def execute_action(self, action, pos):
         # 0-north, 1-south, 2-east, 3-west, 4-no move
+        # todo: king's moves (southeast, northwest, southwest, northeast)
         if action == 0:
             if pos + 1 > self.size: pos -= self.size
         elif action == 1:
@@ -84,17 +89,17 @@ class SnakeEnv(gym.Env):
             if (pos + 1) % self.size != 0: pos += 1
         elif action == 3:
             if pos % self.size != 0: pos -= 1
+        elif action == 4:
+            pos = pos
         else:
             raise NotImplementedError
         return pos
 
     def step(self, action, verbose=False):
         old_pos = self.pos
-
         new_pos = self.execute_action(action, old_pos)
         if verbose:
             print('{:>3d} {} {:>3d}'.format(old_pos, action, new_pos), end=' ')
-
         if new_pos in self.ladders.keys():
             random_prob = np.random.random()
             for pos, prob in zip(*self.ladders[new_pos]):
@@ -102,10 +107,8 @@ class SnakeEnv(gym.Env):
                 if random_prob <= 0.0:
                     new_pos = pos
                     break
-
         self.pos = new_pos
         self.records.append((new_pos, ''))
-
         rew, done = self.get_reward(new_pos)
         if verbose:
             print('{:>3d} {:>+6.1f} {}'.format(new_pos, rew, int(done)))
@@ -115,9 +118,9 @@ class SnakeEnv(gym.Env):
         if s in self.target_checker:
             self.target_checker.remove(s)
             if len(self.target_checker) > 0:
-                return 10.0, False
-            return 10.0, True
-        return -1.0, False
+                return self.x, False
+            return self.x, True
+        return self.y, False
 
     def render(self, **kwargs):
         if self.cv_render is None:

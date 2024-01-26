@@ -3,10 +3,11 @@ import time
 import numpy as np
 
 from env import SnakeEnv
-from algo import (PolicyIteration, ValueIteration, MonteCarlo, SARSA, QLearning)
+from algo.basic import PolicyIteration, ValueIteration
+from algo.value_based import MonteCarlo, SARSA, QLearning
 
 
-def test(env, policy, algo='algo', max_iter=100, **kwargs):
+def test(env, policy, name='algo', max_len=100, **kwargs):
     state, done = env.reset(reuse=True, **kwargs), False
     return_val = 0.0
     step = 0
@@ -17,76 +18,61 @@ def test(env, policy, algo='algo', max_iter=100, **kwargs):
         return_val += reward
         step += 1
         state = next_state
-
-        env.render(mode=algo+': {}/{}'.format(step, max_iter))
-
-        if step >= max_iter:
+        env.render(mode=name + ': {}/{}'.format(step, max_len))
+        if step >= max_len:
             break
-
     print('Total reward:', return_val)
     print('Total step:', step)
     return step, return_val, int(done)
 
 
-def train():
-    env = SnakeEnv(size=10, num_targets=1)
-    env.reset()
-
-    # print('\n-------------Policy Iteration-------------')
-    # start = time.time()
-    # pi = PolicyIteration(env).update()
-    # print('Time consumption: ', time.time()-start)
-    # test(env, pi, algo='Policy Iteration')
-    # print('------------------------------------------')
-
-    # print('\n-------------Value Iteration-------------')
-    # env.reset(reuse=True)
-    # start = time.time()
-    # pi = ValueIteration(env).update(max_eval_iter=10)
-    # print('Time consumption: ', time.time()-start)
-    # test(env, pi, algo='Value Iteration')
-    # print('-----------------------------------------')
-
-    eval_iter, improve_iter = 32, 1000
-
-    print('\n---------------Monte Carlo---------------')
-    env.reset(reuse=True)
+def train(env, algo, max_len=100, **kwargs):
+    print('\n------------------------------------------')
+    env.reset(reuse=True, verbose=True)
+    algo = algo(env, **kwargs)
+    print('Algorithm: ', algo.name)
     start = time.time()
-    pi = MonteCarlo(env, epsilon=0.5, max_len=100).update(
-        eval_iter=eval_iter,
-        improve_iter=improve_iter,
-        verbose=False
-    )
-    print('Time consumption: ', time.time()-start)
-    test(env, pi, algo='Monte Carlo', verbose=False)
-    print('-----------------------------------------')
+    pi = algo.update()
+    print('Time consumption: ', time.time() - start)
+    test(env, pi, name=algo.name, max_len=max_len)
+    print('------------------------------------------')
 
-    print('\n---------------SARSA---------------')
-    env.reset(reuse=True)
-    start = time.time()
-    pi = SARSA(env, epsilon=0.5, max_len=100, lamd=0.0).update(
-        eval_iter=eval_iter,
-        improve_iter=improve_iter,
-        verbose=False
-    )
-    print('Time consumption: ', time.time()-start)
-    test(env, pi, algo='SARSA', verbose=False)
-    print('-------------------------------------')
 
-    print('\n---------------Q Learning---------------')
-    env.reset(reuse=True)
-    start = time.time()
-    pi = QLearning(env, epsilon=0.5, max_len=100).update(
-        eval_iter=eval_iter,
-        improve_iter=improve_iter,
-        verbose=False
-    )
-    print('Time consumption: ', time.time()-start)
-    test(env, pi, algo='Q Learning', verbose=False)
-    print('-----------------------------------------')
+def main():
+    # Environment
+    env = SnakeEnv(size=20, num_ladders=0, num_targets=1)
+    # Parameters
+    alpha = 0.01
+    gamma = 0.95
+    epsilon = 0.5
+    max_len = 100
+    eval_iter = 128
+    improve_iter = 1000
+    # algo: PI, VI
+    kwargs = {
+        'gamma': gamma,
+        'max_len': max_len,
+        'eval_iter': eval_iter,
+        'improve_iter': improve_iter
+    }
+    train(env, algo=PolicyIteration, **kwargs)
+    train(env, algo=ValueIteration, **kwargs)
+    # algo: MC, TD
+    kwargs = {
+        'lamb': 0.0,
+        'alpha': alpha,
+        'gamma': gamma,
+        'max_len': max_len,
+        'eval_iter': eval_iter,
+        'improve_iter': improve_iter,
+        'epsilon': epsilon
+    }
+    train(env, algo=MonteCarlo, **kwargs)
+    train(env, algo=SARSA, **kwargs)
+    train(env, algo=QLearning, **kwargs)
 
     env.close()
 
 
 if __name__ == '__main__':
-    train()
+    main()
