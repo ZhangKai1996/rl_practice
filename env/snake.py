@@ -4,6 +4,7 @@ import numpy.random
 from gym.spaces import Discrete
 
 from .visual import CVRender
+from .utils import distance
 
 
 class SnakeEnv(gym.Env):
@@ -121,6 +122,24 @@ class SnakeEnv(gym.Env):
                 return self.x, False
             return self.x, True
         return self.y, False
+
+    def get_reward2(self, s):
+        # if s in self.target_checker:
+        #     self.target_checker.remove(s)
+        #
+        # if len(self.target_checker) <= 0:
+        #     return 0.0, True
+
+        if s in self.target_checker:
+            return 0.0, True
+
+        rew = 0.0
+        dists = []
+        for target in self.target_checker:
+            dist = distance(s, target, self.size)
+            dists.append(dist)
+        rew -= min(dists) * 0.01
+        return rew, False
 
     def render(self, **kwargs):
         if self.cv_render is None:

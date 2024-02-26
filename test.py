@@ -50,35 +50,50 @@ def main():
     eval_iter = 128
     improve_iter = 1000
     # algo: PI, VI
+
+    delta_list = []
+
     kwargs = {
         'gamma': gamma,
         'max_len': max_len,
         'eval_iter': eval_iter,
-        'improve_iter': improve_iter
+        'improve_iter': improve_iter,
+        'reward': 1
     }
-    delta_list = []
-
     env.x, env.y = 10.0, -1.0
     delta = train(env, algo=PolicyIteration, **kwargs)
     delta_list.append(delta)
 
-    env.x, env.y = 5.0, -1.0
+    kwargs = {
+        'gamma': gamma,
+        'max_len': max_len,
+        'eval_iter': eval_iter,
+        'improve_iter': improve_iter,
+        'reward': 2
+    }
+    env.x, env.y = 10.0, -1.0
     delta = train(env, algo=PolicyIteration, **kwargs)
     delta_list.append(delta)
 
-    env.x, env.y = 0.0, -1.0
+    kwargs = {
+        'gamma': gamma,
+        'max_len': max_len,
+        'eval_iter': eval_iter,
+        'improve_iter': improve_iter,
+        'reward': 1
+    }
+    env.x, env.y = 1.0, -1.0
     delta = train(env, algo=PolicyIteration, **kwargs)
     delta_list.append(delta)
 
-    env.x, env.y = 0.5, -1.0
-    delta = train(env, algo=PolicyIteration, **kwargs)
-    delta_list.append(delta)
-
-    env.x, env.y = 0.5, -0.5
-    delta = train(env, algo=PolicyIteration, **kwargs)
-    delta_list.append(delta)
-
-    env.x, env.y = 0.0, -2.0
+    kwargs = {
+        'gamma': gamma,
+        'max_len': max_len,
+        'eval_iter': eval_iter,
+        'improve_iter': improve_iter,
+        'reward': 2
+    }
+    env.x, env.y = 1.0, -1.0
     delta = train(env, algo=PolicyIteration, **kwargs)
     delta_list.append(delta)
 
@@ -94,8 +109,8 @@ if __name__ == '__main__':
     delta_array = np.array(delta_array)
 
     import matplotlib.pyplot as plt
-    fig, axes = plt.subplots(6, 1, sharex=True)
-    for i in range(6):
+    fig, axes = plt.subplots(4, 1, sharex=True)
+    for i in range(4):
         axes[i].hist(delta_array[:, i])
 
     plt.savefig('figs/record.pdf')

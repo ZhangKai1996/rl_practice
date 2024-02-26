@@ -5,7 +5,7 @@ import numpy as np
 
 
 class PlanningAgent:
-    def __init__(self, env):
+    def __init__(self, env, reward=1):
         self.num_obs = num_obs = env.observation_space.n
         self.num_act = num_act = env.action_space.n
 
@@ -18,7 +18,11 @@ class PlanningAgent:
                     continue
                 for s_prime, prob in zip(*env.ladders[s_prime]):
                     self.p[a, s, s_prime] = prob
-        self.r = [env.get_reward(s)[0] for s in range(num_obs)]     # R(s')
+        if reward == 1:
+            self.r = [env.get_reward(s)[0] for s in range(num_obs)]     # R(s')
+        else:
+            self.r = [env.get_reward2(s)[0] for s in range(num_obs)]     # R(s')
+
         random_actions = np.random.randint(0, num_act, size=(num_obs, ))
         self.pi = np.eye(num_act)[random_actions]                   # $\pi$(s)
         self.v = np.zeros((num_obs,))                               # V(s)
@@ -190,7 +194,6 @@ class ValueRender:
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5, (0, 0, 0), 1, cv2.LINE_AA
             )
-
             for j in range(size):
                 row = int(border_len / 2 + j * border_len + h_p)
                 pos = (column, row)

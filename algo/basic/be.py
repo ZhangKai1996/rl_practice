@@ -6,7 +6,7 @@ from algo.agent import PlanningAgent
 
 class BellmanEquation(object):
     def __init__(self, env):
-        self.agent = PlanningAgent(env, algo='BE')
+        self.agent = PlanningAgent(env)
         self.gamma = 0.95
 
     def evaluate(self, pi):

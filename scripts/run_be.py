@@ -40,8 +40,7 @@ def optimal_bellman(env, gamma=1., verbose=True):
                 p[state, action, next_state] += prob
                 r[state, action] += (reward * prob)
     c = np.ones(env.nS)
-    a_ub = gamma * p.reshape(-1, env.nS) - \
-           np.repeat(np.eye(env.nS), env.nA, axis=0)
+    a_ub = gamma * p.reshape(-1, env.nS) - np.repeat(np.eye(env.nS), env.nA, axis=0)
     b_ub = -r.reshape(-1)
     a_eq = np.zeros((0, env.nS))
     b_eq = np.zeros(0)

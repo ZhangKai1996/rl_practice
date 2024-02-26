@@ -1,2 +1,2 @@
-from .policy_iteration import PolicyIteration
-from .value_iteration import ValueIteration
+from .pi import PolicyIteration
+from .vi import ValueIteration
