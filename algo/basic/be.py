@@ -5,51 +5,65 @@ from algo.agent import PlanningAgent
 
 
 class BellmanEquation(object):
-    def __init__(self, env):
+    def __init__(self, env, gamma=0.95, **kwargs):
+        self.name = 'BE'
         self.agent = PlanningAgent(env)
-        self.gamma = 0.95
+        self.gamma = gamma
 
     def evaluate(self, pi):
+        """
+        .. math:: V = \\Pi P (R + \\gamma V)
+        .. math:: (I - \\gamma \\Pi P) V = \\Pi P R \\Leftrightarrow ax = b
+        .. math:: \\Rightarrow a = I - \\gamma \\Pi P
+        .. math:: \\Rightarrow b = \\Pi P R
+        """
         agent = self.agent
         num_obs, num_act = agent.num_obs, agent.num_act
         p = agent.p
         r = agent.r
 
-        # Ax = b
-        A, b = np.eye(num_obs), np.zeros((num_obs,))
+        # ax = b
+        a, b = np.eye(num_obs), np.zeros((num_obs,))
         for s in range(num_obs):
-            p_act = pi[s]
-            for a in range(num_act):
-                prob = p_act[a]
-                A[s, :] -= prob * self.gamma * p[a, s, :]
-                b[s] += prob * np.dot(p[a, s, :], r)
-        v = np.linalg.solve(A, b)
-
+            a -= self.gamma * np.dot(pi, p[:, s, :])
+            b += np.dot(np.dot(pi, p[:, s, :]), r)
+        v = np.linalg.solve(a, b)
         q = np.zeros((num_obs, num_act))
         for s in range(num_obs):
-            for a in range(num_act):
-                q[s, a] = np.dot(p[a, s, :], r + self.gamma * v)
+            q[s, :] = np.dot(p[:, s, :], r + self.gamma * v)
         return v, q
 
-    def solve(self):
+    def update(self):
         agent = self.agent
         num_obs, num_act = agent.num_obs, agent.num_act
-        P = agent.p
+        p = agent.p
+        r = np.array(agent.r)
 
-        p = np.zeros((num_obs, num_act, num_obs))
-        r = np.zeros((num_obs, num_act))
-        for s in range(num_obs - 1):
-            for a in range(num_act):
-                for prob, s_prime, reward, terminated in P[s][a]:
-                    p[s, a, s_prime] += prob
-                    r[s, a] += (reward * prob)
+        a_ub = np.zeros((num_act, num_obs, num_obs))
+        e = np.eye(num_obs)
+        b_ub = np.zeros((num_obs, num_act))
+        for a in range(num_act):
+            a_ub[a, :, :] = self.gamma * p[a, :, :] - e
+        for s in range(num_obs):
+            b_ub[s, :] -= np.dot(p[:, s, :], r)
 
+        a_ub = a_ub.transpose(1, 0, 2)
         v = scipy.optimize.linprog(
             c=np.ones(num_obs),
-            A_ub=self.gamma * p.reshape(-1, num_obs) - np.repeat(np.eye(num_obs), num_act, axis=0),
-            b_ub=-r.reshape(-1),
+            A_ub=a_ub.reshape(-1, num_obs),
+            b_ub=b_ub.reshape(-1),
             bounds=[(None, None), ] * num_obs,
             method='interior-point'
         ).x
         q = r + self.gamma * np.dot(p, v)
-        return v, q
+        q = q.transpose(1, 0)
+
+        agent.q = q
+        agent.v = v
+        new_policy = np.zeros_like(agent.pi)
+        for s in range(agent.num_obs):
+            idx = np.argmax(q[s, :])
+            new_policy[s, idx] = 1.0
+        agent.pi = new_policy
+        self.agent.visual(algo=self.name)
+        return agent.pi

@@ -1,4 +1,4 @@
-from algo.basic.pi import PolicyIteration
-from algo.value_based.sarsa import SARSA
-
+from algo.basic import PolicyIteration, ValueIteration
+from algo.value_based import SARSA, QLearning, MonteCarlo
+from algo.policy_based import PolicyGradient
 from .agent import *

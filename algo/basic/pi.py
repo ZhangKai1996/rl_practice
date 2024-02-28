@@ -4,10 +4,10 @@ from algo.agent import PlanningAgent
 
 
 class PolicyIteration:
-    def __init__(self, env, gamma=0.99, eval_iter=-1, improve_iter=-1, reward=1):
+    def __init__(self, env, gamma=0.99, eval_iter=-1, improve_iter=-1):
         self.name = 'PI'
         self.gamma = gamma
-        self.agent = PlanningAgent(env, reward=reward)
+        self.agent = PlanningAgent(env)
         self.e_iter = int(1e6) if eval_iter <= 0 else eval_iter
         self.i_iter = int(1e6) if improve_iter <= 0 else improve_iter
 

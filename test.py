@@ -58,7 +58,6 @@ def main():
         'max_len': max_len,
         'eval_iter': eval_iter,
         'improve_iter': improve_iter,
-        'reward': 1
     }
     env.x, env.y = 10.0, -1.0
     delta = train(env, algo=PolicyIteration, **kwargs)
@@ -69,7 +68,6 @@ def main():
         'max_len': max_len,
         'eval_iter': eval_iter,
         'improve_iter': improve_iter,
-        'reward': 2
     }
     env.x, env.y = 10.0, -1.0
     delta = train(env, algo=PolicyIteration, **kwargs)
@@ -80,7 +78,6 @@ def main():
         'max_len': max_len,
         'eval_iter': eval_iter,
         'improve_iter': improve_iter,
-        'reward': 1
     }
     env.x, env.y = 1.0, -1.0
     delta = train(env, algo=PolicyIteration, **kwargs)
@@ -91,7 +88,6 @@ def main():
         'max_len': max_len,
         'eval_iter': eval_iter,
         'improve_iter': improve_iter,
-        'reward': 2
     }
     env.x, env.y = 1.0, -1.0
     delta = train(env, algo=PolicyIteration, **kwargs)

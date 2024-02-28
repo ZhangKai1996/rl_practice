@@ -49,8 +49,7 @@ class ExpectedSARSAAgent:
         state, _, _, action, next_state, reward, terminated, _ = \
             self.trajectory[-8:]
 
-        v = (self.q[next_state].mean() * self.epsilon + \
-             self.q[next_state].max() * (1. - self.epsilon))
+        v = (self.q[next_state].mean() * self.epsilon + self.q[next_state].max() * (1. - self.epsilon))
         target = reward + self.gamma * v * (1. - terminated)
         td_error = target - self.q[state, action]
         self.q[state, action] += self.learning_rate * td_error

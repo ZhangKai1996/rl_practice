@@ -1,10 +1,8 @@
 import time
-
 import numpy as np
 
 from env import SnakeEnv
-from algo.basic import PolicyIteration, ValueIteration
-from algo.value_based import MonteCarlo, SARSA, QLearning
+from algo.basic import *
 
 
 def test(env, policy, name='algo', max_len=100, **kwargs):
@@ -26,7 +24,7 @@ def test(env, policy, name='algo', max_len=100, **kwargs):
     return step, return_val, int(done)
 
 
-def train(env, algo, max_len=100, **kwargs):
+def run(env, algo, max_len=100, **kwargs):
     print('\n------------------------------------------')
     env.reset(reuse=True, verbose=True)
     algo = algo(env, **kwargs)
@@ -40,37 +38,17 @@ def train(env, algo, max_len=100, **kwargs):
 
 def main():
     # Environment
-    env = SnakeEnv(size=20, num_ladders=0, num_targets=1)
+    env = SnakeEnv(size=20, num_ladders=30, num_targets=1)
     # Parameters
-    alpha = 0.01
-    gamma = 0.95
-    epsilon = 0.5
-    max_len = 100
-    eval_iter = 128
-    improve_iter = 1000
-    # algo: PI, VI
     kwargs = {
-        'gamma': gamma,
-        'max_len': max_len,
-        'eval_iter': eval_iter,
-        'improve_iter': improve_iter
+        'gamma': 0.95,
+        'max_len': 100,
+        'eval_iter': 128,
+        'improve_iter': 1000
     }
-    train(env, algo=PolicyIteration, **kwargs)
-    train(env, algo=ValueIteration, **kwargs)
-    # algo: MC, TD
-    kwargs = {
-        'lamb': 0.0,
-        'alpha': alpha,
-        'gamma': gamma,
-        'max_len': max_len,
-        'eval_iter': eval_iter,
-        'improve_iter': improve_iter,
-        'epsilon': epsilon
-    }
-    train(env, algo=MonteCarlo, **kwargs)
-    train(env, algo=SARSA, **kwargs)
-    train(env, algo=QLearning, **kwargs)
-
+    # Algo: PI
+    run(env, algo=BellmanEquation, **kwargs)
+    run(env, algo=PolicyIteration, **kwargs)
     env.close()
 
 

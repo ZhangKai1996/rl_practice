@@ -93,7 +93,8 @@ def main():
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s [%(levelname)s] %(message)s',
-        stream=sys.stdout, datefmt='%H:%M:%S'
+        stream=sys.stdout,
+        datefmt='%H:%M:%S'
     )
 
     env = gym.make('FrozenLake-v1')
