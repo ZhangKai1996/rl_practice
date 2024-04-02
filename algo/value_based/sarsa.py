@@ -33,11 +33,12 @@ class SARSA(object):
             if not self.__improvement():
                 print('Iteration: ', i + 1)
                 break
+            self.agent.visual(algo=self.name)
+
         with open('figs/sarsa_loss.csv', 'w', newline='') as f:
             f = csv.writer(f)
             f.writerows(losses)
 
-        self.agent.visual(algo=self.name)
         return self.agent.pi
 
     def __evaluation(self):

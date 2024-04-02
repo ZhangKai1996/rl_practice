@@ -30,9 +30,9 @@ def run(env, algo, max_len=100, **kwargs):
     algo = algo(env, **kwargs)
     print('Algorithm: ', algo.name)
     start = time.time()
-    pi = algo.update()
+    pi_star = algo.update()
     print('Time consumption: ', time.time() - start)
-    test(env, pi, name=algo.name, max_len=max_len)
+    test(env, pi_star, name=algo.name, max_len=max_len)
     print('------------------------------------------')
 
 

@@ -7,7 +7,7 @@ from algo.agent import PlanningAgent
 class BellmanEquation(object):
     def __init__(self, env, gamma=0.95, **kwargs):
         self.name = 'BE'
-        self.agent = PlanningAgent(env)
+        self.agent = PlanningAgent(env, **kwargs)
         self.gamma = gamma
 
     def evaluate(self, pi):
@@ -46,8 +46,8 @@ class BellmanEquation(object):
             a_ub[a, :, :] = self.gamma * p[a, :, :] - e
         for s in range(num_obs):
             b_ub[s, :] -= np.dot(p[:, s, :], r)
-
         a_ub = a_ub.transpose(1, 0, 2)
+
         v = scipy.optimize.linprog(
             c=np.ones(num_obs),
             A_ub=a_ub.reshape(-1, num_obs),
@@ -57,13 +57,17 @@ class BellmanEquation(object):
         ).x
         q = r + self.gamma * np.dot(p, v)
         q = q.transpose(1, 0)
-
         agent.q = q
         agent.v = v
+
         new_policy = np.zeros_like(agent.pi)
         for s in range(agent.num_obs):
-            idx = np.argmax(q[s, :])
-            new_policy[s, idx] = 1.0
+            # idx = np.argmax(q[s, :])
+            q_s = q[s, :]
+            ids = np.argwhere(q_s == q_s.max())
+            ids = ids.squeeze(axis=1)
+            for idx in ids:
+                new_policy[s, idx] = 1.0 / len(ids)
         agent.pi = new_policy
         self.agent.visual(algo=self.name)
         return agent.pi

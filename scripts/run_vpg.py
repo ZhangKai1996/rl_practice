@@ -72,7 +72,7 @@ class VPGAgent:
         states = np.stack(df['state'])
         actions = np.eye(self.action_n)[df['action'].astype(int)]
         sample_weight = df[['discounted_return', ]].values.astype(float)
-        self.policy_net.fit(states, actions, sample_weight=sample_weight, verbose=0)
+        self.policy_net.fit(states, actions, sample_weight=sample_weight, verbose=1)
 
 
 agent = VPGAgent(env)

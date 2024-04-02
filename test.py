@@ -1,9 +1,8 @@
 import time
-
 import numpy as np
 
 from env import SnakeEnv
-from algo.basic import PolicyIteration
+from algo.basic import *
 
 
 def test(env, policy, name='algo', max_len=100, **kwargs):
@@ -12,8 +11,15 @@ def test(env, policy, name='algo', max_len=100, **kwargs):
     step = 0
 
     while not done:
-        act = np.argmax(policy[state])
-        next_state, reward, done, _ = env.step(act, **kwargs)
+        # act = np.argmax(policy[state])
+        act_prob = policy[state]
+        acts = np.argwhere(act_prob == act_prob.max())
+        print('\t>>>', acts.shape, end=' ')
+        acts = acts.squeeze(axis=1)
+        print(act_prob, acts, end=' ')
+        np.random.shuffle(acts)
+        print(acts[0])
+        next_state, reward, done, _ = env.step(acts[0], **kwargs)
         return_val += reward
         step += 1
         state = next_state
@@ -25,89 +31,67 @@ def test(env, policy, name='algo', max_len=100, **kwargs):
     return step, return_val, int(done)
 
 
-def train(env, algo, max_len=100, **kwargs):
+def run(env, algo, max_len=100, **kwargs):
     print('\n------------------------------------------')
     env.reset(reuse=True, verbose=True)
     algo = algo(env, **kwargs)
     print('Algorithm: ', algo.name)
     start = time.time()
-    pi = algo.update()
+    pi_star = algo.update()
     delta = time.time() - start
     print('Time consumption: ', delta)
-    test(env, pi, name=algo.name, max_len=max_len)
+    result = test(env, pi_star, name=algo.name, max_len=max_len)
     print('------------------------------------------')
-    return delta
+    return pi_star, [delta, ] + list(result[1:])
 
 
-def main():
+def main(size=30, ladders=0, targets=1, obstacles=50):
     # Environment
-    env = SnakeEnv(size=20, num_ladders=0, num_targets=1)
+    env = SnakeEnv(size=size, num_ladders=ladders, num_targets=targets, num_obstacles=obstacles)
     # Parameters
-    alpha = 0.01
-    gamma = 0.95
-    epsilon = 0.5
-    max_len = 100
-    eval_iter = 128
-    improve_iter = 1000
-    # algo: PI, VI
-
-    delta_list = []
-
     kwargs = {
-        'gamma': gamma,
-        'max_len': max_len,
-        'eval_iter': eval_iter,
-        'improve_iter': improve_iter,
+        'gamma': 0.95,
+        'max_len': 100,
+        'rew': 0
     }
-    env.x, env.y = 10.0, -1.0
-    delta = train(env, algo=PolicyIteration, **kwargs)
-    delta_list.append(delta)
-
-    kwargs = {
-        'gamma': gamma,
-        'max_len': max_len,
-        'eval_iter': eval_iter,
-        'improve_iter': improve_iter,
-    }
-    env.x, env.y = 10.0, -1.0
-    delta = train(env, algo=PolicyIteration, **kwargs)
-    delta_list.append(delta)
-
-    kwargs = {
-        'gamma': gamma,
-        'max_len': max_len,
-        'eval_iter': eval_iter,
-        'improve_iter': improve_iter,
-    }
-    env.x, env.y = 1.0, -1.0
-    delta = train(env, algo=PolicyIteration, **kwargs)
-    delta_list.append(delta)
-
-    kwargs = {
-        'gamma': gamma,
-        'max_len': max_len,
-        'eval_iter': eval_iter,
-        'improve_iter': improve_iter,
-    }
-    env.x, env.y = 1.0, -1.0
-    delta = train(env, algo=PolicyIteration, **kwargs)
-    delta_list.append(delta)
-
+    # Algo: BE
+    pi_1, result_1 = run(env, algo=BellmanEquation, **kwargs)
+    # Algo: BE
+    kwargs['rew'] = 1
+    pi_2, result_2 = run(env, algo=BellmanEquation, **kwargs)
     env.close()
-    return np.array(delta_list)
+    return [int(np.all(pi_1 == pi_2)), ] + result_1 + result_2
 
 
 if __name__ == '__main__':
+    num_iter = 100
+    size_ = 30
+    num_ladders = 0
+    num_targets = 1
+    num_obstacles = 50
+
     delta_array = []
-    for episode in range(100):
-        print('{}/{}'.format(episode+1, 2))
-        delta_array.append(main())
+    for episode in range(num_iter):
+        print('{}/{}'.format(episode+1, num_iter))
+        delta_array.append(main(size_, num_ladders, num_targets, num_obstacles))
     delta_array = np.array(delta_array)
 
     import matplotlib.pyplot as plt
-    fig, axes = plt.subplots(4, 1, sharex=True)
-    for i in range(4):
-        axes[i].hist(delta_array[:, i])
-
-    plt.savefig('figs/record.pdf')
+    fig, axes = plt.subplots(2, 1)
+    o_rate = round(delta_array[:, 0].mean()*100, 2)
+    d_rate_1 = round(delta_array[:, 3].mean()*100, 2)
+    d_rate_2 = round(delta_array[:, 6].mean()*100, 2)
+    delta_tim = delta_array[:, 1] - delta_array[:, 4]
+    axes[0].set_title('Overlap: {}%, Done: ({}%,{}%), Mean: {}'.format(
+        o_rate, d_rate_1, d_rate_2, round(np.mean(delta_tim), 2)
+    ))
+    axes[0].hist(delta_tim, label='Pi_1-Pi_2')
+    axes[0].legend()
+    delta_ret = delta_array[:, 2] - delta_array[:, 5]
+    axes[1].set_title('Mean of Return Delta: {}'.format(round(np.mean(delta_ret), 2)))
+    axes[1].hist(delta_ret, label='Ret_1-Ret_2')
+    axes[1].legend()
+    plt.savefig('figs/record_{}_{}_{}_{}_{}.pdf'.format(
+        num_iter, size_, num_ladders, num_targets, num_obstacles
+    ))
     plt.show()

@@ -2,17 +2,19 @@ import time
 
 import numpy as np
 
-from env import SnakeEnv
+from env import SnakeEnvV1
 from algo.policy_based import PolicyGradient
 
 
-def test(env, policy, name='algo', max_len=100, **kwargs):
+def test(env, agent, name='algo', max_len=100, **kwargs):
     state, done = env.reset(reuse=True, **kwargs), False
     return_val = 0.0
     step = 0
 
     while not done:
-        act = np.argmax(policy[state])
+        # act = np.argmax(agent.play(state))
+        act = agent.play(state)
+        print(state, act)
         next_state, reward, done, _ = env.step(act, **kwargs)
         return_val += reward
         step += 1
@@ -20,7 +22,7 @@ def test(env, policy, name='algo', max_len=100, **kwargs):
         env.render(mode=name + ': {}/{}'.format(step, max_len))
         if step >= max_len:
             break
-    print('Total reward:', return_val)
+    print('Total reward:', return_val, done)
     print('Total step:', step)
     return step, return_val, int(done)
 
@@ -31,18 +33,18 @@ def train(env, algo, max_len=100, **kwargs):
     algo = algo(env, **kwargs)
     print('Algorithm: ', algo.name)
     start = time.time()
-    pi = algo.update()
+    algo.update()
     print('Time consumption: ', time.time() - start)
-    test(env, pi, name=algo.name, max_len=max_len)
+    test(env, algo.agent, name=algo.name, max_len=max_len)
     print('------------------------------------------')
 
 
 def main():
     # Environment
-    env = SnakeEnv(size=20, num_ladders=30, num_targets=3)
+    env = SnakeEnvV1(size=20, num_ladders=0, num_targets=1)
     # Parameters
-    alpha = 0.01
-    gamma = 0.95
+    alpha = 0.001
+    gamma = 0.99
     epsilon = 0.5
     max_len = 100
     improve_iter = 1000
