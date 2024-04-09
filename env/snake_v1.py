@@ -90,7 +90,6 @@ class SnakeEnvV1(gym.Env):
 
     def execute_action(self, action, pos):
         # 0-north, 1-south, 2-east, 3-west, 4-no move
-        # todo: king's moves (southeast, northwest, southwest, northeast)
         if action == 0:
             if pos + 1 > self.size: pos -= self.size
         elif action == 1:

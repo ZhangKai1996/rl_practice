@@ -69,7 +69,7 @@ class EnvRender:
                 cv2.line(base_image, pos, self.pos_dict[v], (0, 0, 0), thickness=1)
 
         self.base_img = base_image
-        cv2.imwrite('figs/base_image.png', base_image)
+        # cv2.imwrite('figs/base_image.png', base_image)
 
     def draw(self, show=False, mode='algo'):
         env = self.env
@@ -116,7 +116,7 @@ class ValueRender:
         self.video = cv2.VideoWriter(
             'figs/value_{}.avi'.format(algo),
             cv2.VideoWriter_fourcc(*'MJPG'),
-            8,
+            30,
             (width*2, height)
         )
         self.env = env
@@ -169,7 +169,6 @@ class ValueRender:
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5, (0, 0, 0), 1, cv2.LINE_AA
             )
-
             for j in range(size):
                 row = int(border_len / 2 + j * border_len + h_p)
                 pos = (column, row)
@@ -210,15 +209,17 @@ class ValueRender:
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.5, (0, 0, 0), 1, cv2.LINE_AA
                     )
-
         return base_img
 
-    def __draw_v(self, value, w_p, h_p, size, border_len):
+    def __draw_v(self, value_pi, w_p, h_p, size, border_len, reg=True):
         base_img = copy.deepcopy(self.base_img)
+        env = self.env
 
-        value_pi = value - np.min(value)
-        max_v_pi = np.max(value_pi)
-        min_v_pi = np.min(value_pi)
+        if reg:
+            value_pi = value_pi - np.min(value_pi)
+            max_v_pi = np.max(value_pi)
+            if max_v_pi > 0:
+                value_pi /= max_v_pi
 
         for i in range(size):
             column = int(border_len / 2 + i * border_len + w_p)
@@ -231,12 +232,14 @@ class ValueRender:
             for j in range(size):
                 row = int(border_len / 2 + j * border_len + h_p)
                 pos = (column, row)
+                idx = i + j * size
                 v_pi = value_pi[i + j * size]
-                if max_v_pi > 0:
-                    # pixel = int((1 - v_pi / max_v_pi) * 255)
-                    pixel = int((1 - (v_pi-min_v_pi) / (max_v_pi-min_v_pi)) * 255)
-                else:
+                if idx in env.obstacles:
                     pixel = 0
+                elif not reg:
+                    pixel = 255
+                else:
+                    pixel = int((1 - v_pi) * 255)
                 # Draw grids
                 cv2.rectangle(
                     base_img,
@@ -245,11 +248,19 @@ class ValueRender:
                     (pixel, pixel, pixel),
                     thickness=-1
                 )
-                # cv2.putText(
-                #     base_img, str(round(v_pi / max_v_pi, 2)), (pos[0] - 10, pos[1]),
-                #     cv2.FONT_HERSHEY_SIMPLEX,
-                #     0.5, (255, 0, 255), 1, cv2.LINE_AA
-                # )
+                cv2.putText(
+                    base_img,
+                    str(round(v_pi, 2)),
+                    # str(round(v_pi, 2)),
+                    (pos[0] - 10, pos[1]),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.4, (255, 0, 255), 1, cv2.LINE_AA
+                )
+                # Draw targets
+                if idx in env.targets:
+                    cv2.circle(base_img, pos, 10, (0, 255, 0), thickness=-1)
+                if idx == env.start:
+                    cv2.circle(base_img, pos, 10, (255, 0, 0), thickness=2)
                 # Draw state
                 if i == 0:
                     cv2.putText(

@@ -42,10 +42,11 @@ def optimal_bellman(env, gamma=1., verbose=True):
     c = np.ones(env.nS)
     a_ub = gamma * p.reshape(-1, env.nS) - np.repeat(np.eye(env.nS), env.nA, axis=0)
     b_ub = -r.reshape(-1)
+    print(a_ub.shape, b_ub.shape, r.shape)
     a_eq = np.zeros((0, env.nS))
     b_eq = np.zeros(0)
     bounds = [(None, None), ] * env.nS
-    print(p.shape, a_ub.shape, b_ub.shape, c.shape)
+    print(p.shape, a_ub.shape, b_ub.shape)
     res = scipy.optimize.linprog(c, a_ub, b_ub, bounds=bounds, method='interior-point')
     v = res.x
     q = r + gamma * np.dot(p, v)

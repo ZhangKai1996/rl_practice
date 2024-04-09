@@ -4,10 +4,10 @@ from algo.agent import PlanningAgent
 
 
 class ValueIteration:
-    def __init__(self, env, gamma=0.99, eval_iter=-1, improve_iter=-1):
+    def __init__(self, env, gamma=0.99, eval_iter=-1, improve_iter=-1, **kwargs):
         self.name = 'VI'
         self.gamma = gamma
-        self.agent = PlanningAgent(env)
+        self.agent = PlanningAgent(env, **kwargs)
         self.e_iter = int(1e6) if eval_iter <= 0 else eval_iter
         self.i_iter = int(1e6) if improve_iter <= 0 else improve_iter
 
@@ -21,26 +21,19 @@ class ValueIteration:
 
         print('Iteration: ', iteration)
         self.agent.visual(algo=self.name)
-        return self.agent.pi
+        return self.agent.pi, iteration
 
     def __evaluation(self, max_iter):
         agent = self.agent
-
         count = 0
         while True:
             old_v = agent.v
             new_v = old_v.copy()
             r = agent.r
             for s in range(agent.num_obs):
-                p_act = agent.pi[s]
-                new_value = []
-                for a in range(agent.num_act):
-                    prob = p_act[a]
-                    value = prob * np.dot(agent.p[a, s, :], r + self.gamma * old_v)
-                    new_value.append(value)
-                new_v[s] = max(new_value)
-            agent.v = new_v
-
+                q = np.dot(agent.p[:, s, :], r + self.gamma * old_v)
+                new_v[s] = q.max()
+            agent.v = new_v.copy()
             count += 1
             diff = np.sqrt(np.sum(np.power(old_v - new_v, 2)))
             if diff < 1e-6 or count >= max_iter:
@@ -48,7 +41,6 @@ class ValueIteration:
 
     def __improvement(self):
         agent = self.agent
-
         new_policy = np.zeros_like(agent.pi)
         v = agent.v
         r = agent.r
@@ -57,7 +49,6 @@ class ValueIteration:
                 agent.q[s, a] = np.dot(agent.p[a, s, :], r + self.gamma * v)
             idx = np.argmax(agent.q[s, :])
             new_policy[s, idx] = 1.0
-
         if np.all(np.equal(new_policy, agent.pi)):
             return False
         agent.pi = new_policy

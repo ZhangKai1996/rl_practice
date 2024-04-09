@@ -1,5 +1,4 @@
 import numpy as np
-
 import tensorflow.compat.v1 as tf
 
 from .misc import softmax
@@ -8,32 +7,32 @@ tf.compat.v1.disable_eager_execution()
 
 
 class PlanningAgent:
-    def __init__(self, env, rew=0):
+    def __init__(self, env, rew=0, **kwargs):
         self.num_obs = num_obs = env.observation_space.n
         self.num_act = num_act = env.action_space.n
 
         self.p = np.zeros([num_act, num_obs, num_obs], dtype=np.float32)  # P(s'|s,a)
-        for a in range(num_act):
-            for s in range(num_obs):
+        for s in range(num_obs):
+            if s in env.obstacles: continue
+            for a in range(num_act):
                 s_prime = env.execute_action(a, s)
                 if s_prime not in env.ladders.keys():
                     self.p[a, s, s_prime] = 1.0
                     continue
                 for s_prime, prob in zip(*env.ladders[s_prime]):
                     self.p[a, s, s_prime] = prob
-
         # 对于规划智能体来说，奖励矩阵需要是静态的，例如在从一个起始点到达一个目标点的环境中，智能体到达目标点时
         # 回合结束，奖励矩阵是固定不变的；但当环境任务变为从一个起始点先后到达多个目标点时，在智能体到达某个目标
         # 点后，该目标点处的奖励会发生变化（清零或者降低），且回合并未结束。因此，规划智能体目前暂时只能用于解决
         # 一个目标点的问题，也即环境中的目标数量为1。
         if rew == 0:
-            self.r = [env.get_reward(s)[0] for s in range(num_obs)]  # R(s')
+            self.r = [env.get_reward(s)[0] for s in range(num_obs)]     # R1(s')
         else:
-            self.r = [env.get_reward1(s)[0] for s in range(num_obs)]
+            self.r = [env.get_reward1(s)[0] for s in range(num_obs)]    # R2(s')
         random_actions = np.random.randint(0, num_act, size=(num_obs,))
-        self.pi = np.eye(num_act)[random_actions]  # $\pi$(s)
-        self.v = np.zeros((num_obs,))  # V(s)
-        self.q = np.zeros((num_obs, num_act))  # Q(s,a)
+        self.pi = np.eye(num_act)[random_actions]                       # $\pi$(s)
+        self.v = np.zeros((num_obs,))                                   # V(s)
+        self.q = np.zeros((num_obs, num_act))                           # Q(s,a)
 
         self.env = env
         self.render = None

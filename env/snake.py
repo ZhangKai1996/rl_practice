@@ -13,7 +13,7 @@ class SnakeEnv(gym.Env):
         self.size = size
         print('>>> Size: {}x{}'.format(size, size))
         self.observation_space = Discrete(size * size)
-        self.action_space = Discrete(9)
+        self.action_space = Discrete(5)
 
         self.num_ladders = num_ladders
         self.num_targets = num_targets
@@ -77,47 +77,54 @@ class SnakeEnv(gym.Env):
             print('>>> Start: ', self.pos, '(king\'s move)')
         return self.pos
 
-    # def execute_action(self, action, pos):
-    #     """ Up-Down-None-Left-Right move (0-4) """
-    #     motions = [(+0, +1), (-1, +0), (+0, +0), (+1, +0), (+0, -1)]
-    #     size = self.size
-    #
-    #     delta_x, delta_y = motions[action]
-    #     [x, y] = state2coord(pos, size)
-    #     new_x, new_y = x + delta_x, y + delta_y
-    #     new_pos = coord2state((new_x, new_y), size)
-    #     if new_pos in self.obstacles:
-    #         return pos
-    #     if 0 <= new_x < size and 0 <= new_y < size:
-    #         return new_pos
-    #     return pos
-
-    def execute_action(self, action, pos):
-        """ King's move (0-8) """
-        motions = [
-            (-1, +1), (+0, +1), (+1, +1),
-            (-1, +0), (+0, +0), (+1, +0),
-            (-1, -1), (+0, -1), (+1, -1),
-        ]
+    def execute_action(self, action, pos, verbose=False):
+        """ Up-Down-None-Left-Right move (0-4) """
+        motions = [(+0, +1), (-1, +0), (+0, +0), (+1, +0), (+0, -1)]
         size = self.size
-
         delta_x, delta_y = motions[action]
         [x, y] = state2coord(pos, size)
-        new_x, new_y = x+delta_x, y+delta_y
+        new_x, new_y = x + delta_x, y + delta_y
+        if verbose:
+            print('\t>>> {:>3d} {:>3d} {:>3d} {:>3d} {:>3d} {:>3d}'.format(
+                delta_x, delta_y, x, y, new_x, new_y
+            ), end=' ')
         new_pos = coord2state((new_x, new_y), size)
-        new_pos1 = coord2state((new_x, y), size)
-        new_pos2 = coord2state((x, new_y), size)
-        if new_pos in self.obstacles or \
-            new_pos1 in self.obstacles or \
-                new_pos2 in self.obstacles:
+        if new_pos in self.obstacles:
             return pos
         if 0 <= new_x < size and 0 <= new_y < size:
             return new_pos
         return pos
 
+    # def execute_action(self, action, pos, verbose=False):
+    #     """ King's move (0-8) """
+    #     motions = [
+    #         (-1, +1), (+0, +1), (+1, +1),
+    #         (-1, +0), (+0, +0), (+1, +0),
+    #         (-1, -1), (+0, -1), (+1, -1),
+    #     ]
+    #     size = self.size
+    #
+    #     delta_x, delta_y = motions[action]
+    #     [x, y] = state2coord(pos, size)
+    #     new_x, new_y = x+delta_x, y+delta_y
+    #     if verbose:
+    #         print('\t>>> {:>3d} {:>3d} {:>3d} {:>3d} {:>3d} {:>3d}'.format(
+    #             delta_x, delta_y, x, y, new_x, new_y
+    #         ), end=' ')
+    #     if 0 <= new_x < size and 0 <= new_y < size:
+    #         new_pos = coord2state((new_x, new_y), size)
+    #         new_pos1 = coord2state((new_x, y), size)
+    #         new_pos2 = coord2state((x, new_y), size)
+    #         if new_pos in self.obstacles or \
+    #             new_pos1 in self.obstacles or \
+    #                 new_pos2 in self.obstacles:
+    #             return pos
+    #         return new_pos
+    #     return pos
+
     def step(self, action, verbose=False):
         old_pos = self.pos
-        new_pos = self.execute_action(action, old_pos)
+        new_pos = self.execute_action(action, old_pos, verbose=verbose)
         if verbose:
             print('\t>>> {:>3d} {} {:>3d}'.format(old_pos, action, new_pos), end=' ')
         if new_pos in self.ladders.keys():
@@ -136,7 +143,7 @@ class SnakeEnv(gym.Env):
 
     def get_reward1(self, s):
         if s in self.obstacles:
-            return -self.size * 2 - 5, False
+            return -self.size*2-10.0, False
         dists = []
         for target in self.target_checker:
             dists.append(distance(s, target, size=self.size))
@@ -145,7 +152,7 @@ class SnakeEnv(gym.Env):
 
     def get_reward(self, s):
         if s in self.obstacles:
-            return -self.size * 2 - 5, False
+            return -self.size*2-10.0, False
         if s in self.target_checker:
             self.target_checker.remove(s)
             if len(self.target_checker) > 0:

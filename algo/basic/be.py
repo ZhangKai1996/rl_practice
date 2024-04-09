@@ -39,14 +39,13 @@ class BellmanEquation(object):
         p = agent.p
         r = np.array(agent.r)
 
-        a_ub = np.zeros((num_act, num_obs, num_obs))
+        a_ub = np.zeros((num_obs, num_act, num_obs))
         e = np.eye(num_obs)
         b_ub = np.zeros((num_obs, num_act))
         for a in range(num_act):
-            a_ub[a, :, :] = self.gamma * p[a, :, :] - e
+            a_ub[:, a, :] = self.gamma * p[a, :, :] - e
         for s in range(num_obs):
             b_ub[s, :] -= np.dot(p[:, s, :], r)
-        a_ub = a_ub.transpose(1, 0, 2)
 
         v = scipy.optimize.linprog(
             c=np.ones(num_obs),
@@ -63,6 +62,7 @@ class BellmanEquation(object):
         new_policy = np.zeros_like(agent.pi)
         for s in range(agent.num_obs):
             # idx = np.argmax(q[s, :])
+            # new_policy[s, idx] = 1.0
             q_s = q[s, :]
             ids = np.argwhere(q_s == q_s.max())
             ids = ids.squeeze(axis=1)
