@@ -1,5 +1,6 @@
 import numpy as np
 
+from common.rendering import save_animation
 from algo.agent import PlanningAgent
 
 
@@ -10,19 +11,38 @@ class PolicyIteration:
         self.agent = PlanningAgent(env, **kwargs)
         self.e_iter = int(1e6) if eval_iter <= 0 else eval_iter
         self.i_iter = int(1e6) if improve_iter <= 0 else improve_iter
+        self.v_lst = []
+
+    def evaluate_pi(self):
+        """
+        .. math:: V = \\Pi P (R + \\gamma V)
+        .. math:: (I - \\gamma \\Pi P) V = \\Pi P R \\Leftrightarrow ax = b
+        .. math:: \\Rightarrow a = I - \\gamma \\Pi P
+        .. math:: \\Rightarrow b = \\Pi P R
+        """
+        agent = self.agent
+        num_obs, num_act = agent.num_obs, agent.num_act
+        p = agent.p
+        r = agent.r
+        pi = agent.pi
+        a, b = np.eye(num_obs), np.zeros((num_obs,))
+        for s in range(num_obs):
+            a[s, :] -= self.gamma * np.dot(pi[s, :], p[:, s, :])
+            b[s] = np.dot(pi[s, :], np.dot(p[:, s, :], r))
+        v = np.linalg.solve(a, b)
+        return v
 
     def update(self):
-        iteration = 0
-        count = 0
+        count, iteration = 0, 0
         while True:
             iteration += 1
             # self.agent.visual(algo=self.name)
             count += self.__evaluation(max_iter=self.e_iter)
             if not self.__improvement() or iteration >= self.i_iter:
                 break
-
         print('Iteration: ', iteration)
-        self.agent.visual(algo=self.name)
+        # save_animation(values=self.v_lst, r=self.agent.r, algo=self.name)
+        # self.agent.visual(algo=self.name)
         return self.agent.pi, iteration, count
 
     def __evaluation(self, max_iter):
@@ -36,6 +56,7 @@ class PolicyIteration:
                 q = np.dot(agent.p[:, s, :], r + self.gamma * old_v)
                 new_v[s] = np.dot(agent.pi[s], q)
             agent.v = new_v.copy()
+            self.v_lst.append(new_v.copy())
 
             count += 1
             diff = np.sqrt(np.sum(np.power(old_v - new_v, 2)))
@@ -45,7 +66,6 @@ class PolicyIteration:
 
     def __improvement(self):
         agent = self.agent
-
         new_policy = np.zeros_like(agent.pi)
         v = agent.v
         r = agent.r

@@ -3,6 +3,8 @@ import copy
 
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 
 
 class EnvRender:
@@ -12,11 +14,9 @@ class EnvRender:
             cv2.VideoWriter_fourcc(*'MJPG'),
             8, (width, height)
         )
-
         self.width = width
         self.height = height
         self.env = env
-
         self.__initialize(env, height, width, padding)
 
     def __initialize(self, env, height, width, padding):
@@ -31,7 +31,7 @@ class EnvRender:
             column = int(border_len / 2 + i * border_len + w_p)
             # Draw state
             cv2.putText(
-                base_image, str(i), (column, int(h_p/2)),
+                base_image, str(i), (column, int(h_p / 2)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5, (0, 0, 0), 1, cv2.LINE_AA
             )
@@ -57,7 +57,7 @@ class EnvRender:
                 # Draw state
                 if i == 0:
                     cv2.putText(
-                        base_image, str(j), (int(h_p/2), row),
+                        base_image, str(j), (int(h_p / 2), row),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.5, (0, 0, 0), 1, cv2.LINE_AA
                     )
@@ -79,7 +79,7 @@ class EnvRender:
         cv2.putText(
             base_img,
             mode,
-            (40, height-40),
+            (40, height - 40),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5, (0, 0, 0), 1, cv2.LINE_AA
         )
@@ -117,7 +117,7 @@ class ValueRender:
             'figs/value_{}.avi'.format(algo),
             cv2.VideoWriter_fourcc(*'MJPG'),
             30,
-            (width*2, height)
+            (width * 2, height)
         )
         self.env = env
         self.base_img = np.ones((height, width, 3), np.uint8) * 255
@@ -278,3 +278,57 @@ class ValueRender:
             cv2.waitKey(1) & 0xFF
             cv2.destroyAllWindows()
             self.video = None
+
+
+def regularize(value):
+    value_pi = value - np.min(value)
+    max_v_pi = np.max(value_pi)
+    if max_v_pi > 0:
+        value_pi /= max_v_pi
+    return value_pi
+
+
+def save_animation(values, r, algo, reg=True):
+    fig = plt.figure()  # 创建一个3D图形对象
+    ax1 = fig.add_subplot(1, 2, 1, projection='3d')
+    ax2 = fig.add_subplot(1, 2, 2, projection='3d')
+    if reg:
+        r = regularize(r)
+
+    def init():  # 初始化函数，创建空白图形
+        ax1.cla()  # 清除当前图形
+        ax1.set_title('Reward')
+        num = int(np.sqrt(len(r)))
+        x = np.linspace(0, num-1, num)
+        y = np.linspace(0, num-1, num)
+        x_grid, y_grid = np.meshgrid(x, y)
+        z = np.array(r).reshape(num, num)
+        ax1.plot_surface(x_grid, y_grid, z, cmap='rainbow')
+        return ax1, ax2
+
+    def update(frame):  # 动画更新函数，用于旋转立方体
+        ax2.cla()  # 清除当前图形
+        ax2.set_title(f'Value (Frame {frame})')
+
+        value = values[frame]
+        if reg:
+            value = regularize(value)
+        num = int(np.sqrt(len(value)))
+        x = np.linspace(0, num-1, num)
+        y = np.linspace(0, num-1, num)
+        x_grid, y_grid = np.meshgrid(x, y)
+        z = value.reshape(num, num)
+        # print(frame, x_grid.shape, y_grid.shape, z.shape)
+        ax2.plot_surface(x_grid, y_grid, z, cmap='rainbow')
+        return ax1, ax2
+
+    frames = len(values)  # 动画帧数
+    ani = FuncAnimation(fig, update, frames=frames, init_func=init, blit=False)
+    # 在创建FuncAnimation对象之后，添加以下代码保存动画为GIF文件
+    ani.save(
+        'figs/value_{}_{}.gif'.format(algo, int(time.time())),
+        writer='pillow',
+        fps=30
+    )
+    # 显示动画
+    # plt.show()

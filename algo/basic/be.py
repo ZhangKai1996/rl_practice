@@ -2,6 +2,7 @@ import numpy as np
 import scipy
 
 from algo.agent import PlanningAgent
+from common.rendering import save_animation
 
 
 class BellmanEquation(object):
@@ -10,7 +11,7 @@ class BellmanEquation(object):
         self.agent = PlanningAgent(env, **kwargs)
         self.gamma = gamma
 
-    def evaluate(self, pi):
+    def evaluate(self, pi, draw=False):
         """
         .. math:: V = \\Pi P (R + \\gamma V)
         .. math:: (I - \\gamma \\Pi P) V = \\Pi P R \\Leftrightarrow ax = b
@@ -25,12 +26,14 @@ class BellmanEquation(object):
         # ax = b
         a, b = np.eye(num_obs), np.zeros((num_obs,))
         for s in range(num_obs):
-            a -= self.gamma * np.dot(pi, p[:, s, :])
-            b += np.dot(np.dot(pi, p[:, s, :]), r)
+            a[s, :] -= self.gamma * np.dot(pi[s], p[:, s, :])
+            b[s, :] = np.dot(pi[s], np.dot(p[:, s, :], r))
         v = np.linalg.solve(a, b)
         q = np.zeros((num_obs, num_act))
         for s in range(num_obs):
             q[s, :] = np.dot(p[:, s, :], r + self.gamma * v)
+        if draw:
+            save_animation(values=[v, ], r=self.agent.r, algo=self.name)
         return v, q
 
     def update(self):
@@ -47,13 +50,14 @@ class BellmanEquation(object):
         for s in range(num_obs):
             b_ub[s, :] -= np.dot(p[:, s, :], r)
 
-        v = scipy.optimize.linprog(
+        result = scipy.optimize.linprog(
             c=np.ones(num_obs),
             A_ub=a_ub.reshape(-1, num_obs),
             b_ub=b_ub.reshape(-1),
             bounds=[(None, None), ] * num_obs,
             method='interior-point'
-        ).x
+        )
+        v = result.x
         q = r + self.gamma * np.dot(p, v)
         q = q.transpose(1, 0)
         agent.q = q
@@ -69,5 +73,6 @@ class BellmanEquation(object):
             for idx in ids:
                 new_policy[s, idx] = 1.0 / len(ids)
         agent.pi = new_policy
-        self.agent.visual(algo=self.name)
-        return agent.pi
+        # self.agent.visual(algo=self.name)
+        save_animation(values=[v, ], r=r, algo=self.name)
+        return agent.pi,

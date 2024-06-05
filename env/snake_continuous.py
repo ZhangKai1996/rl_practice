@@ -7,7 +7,7 @@ from common import EnvRender
 from .utils import state2coord, distance
 
 
-class SnakeEnvV1(gym.Env):
+class SnakeContinuousEnv(gym.Env):
     def __init__(self, size=10, num_ladders=15, num_targets=3):
         print('Snake environment')
         self.size = size

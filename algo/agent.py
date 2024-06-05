@@ -6,6 +6,14 @@ from common import ValueRender
 tf.compat.v1.disable_eager_execution()
 
 
+def reg(r):
+    r = r - np.min(r)
+    max_r = np.max(r)
+    if max_r > 0:
+        r /= max_r
+    return r
+
+
 class PlanningAgent:
     def __init__(self, env, rew=0, **kwargs):
         self.num_obs = num_obs = env.observation_space.n
@@ -25,10 +33,21 @@ class PlanningAgent:
         # 回合结束，奖励矩阵是固定不变的；但当环境任务变为从一个起始点先后到达多个目标点时，在智能体到达某个目标
         # 点后，该目标点处的奖励会发生变化（清零或者降低），且回合并未结束。因此，规划智能体目前暂时只能用于解决
         # 一个目标点的问题，也即环境中的目标数量为1。
-        if rew == 0:
-            self.r = [env.get_reward(s)[0] for s in range(num_obs)]     # R1(s')
+
+        if rew == 1:
+            self.r = np.array([env.get_reward(s)[0] for s in range(num_obs)])     # R1(s')
+        elif rew == 2:
+            self.r = np.array([env.get_reward1(s)[0] for s in range(num_obs)])  # R2(s')
+        elif rew == 3:
+            self.r = np.array([env.get_reward(s, scale=10.0)[0] for s in range(num_obs)])    # R2(s')
         else:
-            self.r = [env.get_reward1(s)[0] for s in range(num_obs)]    # R2(s')
+            self.r = np.array([env.get_reward1(s, scale=10.0)[0] for s in range(num_obs)])  # R2(s')
+        self.r = np.array([env.get_reward1(s, scale=rew)[0] for s in range(num_obs)])    # R2(s')
+
+        # else:
+        #     self.r = np.array([np.random.random() for _ in range(num_obs)])    # R2(s')
+        # self.r = reg(self.r)
+
         random_actions = np.random.randint(0, num_act, size=(num_obs,))
         self.pi = np.eye(num_act)[random_actions]                       # $\pi$(s)
         self.v = np.zeros((num_obs,))                                   # V(s)

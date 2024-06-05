@@ -1,2 +1,2 @@
-from .snake import SnakeEnv
-from .snake_v1 import SnakeEnvV1
+from .snake_discrete import SnakeDiscreteEnv
+from .snake_continuous import SnakeContinuousEnv

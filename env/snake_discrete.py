@@ -7,7 +7,7 @@ from common.rendering import EnvRender
 from env.utils import *
 
 
-class SnakeEnv(gym.Env):
+class SnakeDiscreteEnv(gym.Env):
     def __init__(self, size=10, num_ladders=15, num_targets=3, num_obstacles=10):
         print('Snake environment')
         self.size = size
@@ -74,6 +74,7 @@ class SnakeEnv(gym.Env):
         self.target_checker = self.targets[:]
         if verbose:
             print('>>> Targets: ', '-->'.join([str(v) for v in self.targets]))
+            print('>>> Obstacles: ', self.num_obstacles)
             print('>>> Start: ', self.pos, '(king\'s move)')
         return self.pos
 
@@ -141,23 +142,23 @@ class SnakeEnv(gym.Env):
             print('\t>>> {:>3d} {:>+6.1f} {}'.format(new_pos, rew, int(done)))
         return new_pos, rew, done, {}
 
-    def get_reward1(self, s):
+    def get_reward1(self, s, scale=1.0):
         if s in self.obstacles:
-            return -self.size*2-10.0, False
+            return -self.size*2.0-10.0, False
         dists = []
-        for target in self.target_checker:
+        for target in self.targets:
             dists.append(distance(s, target, size=self.size))
-        rew = -min(dists)
+        rew = -float(min(dists))*scale
         return rew, False
 
-    def get_reward(self, s):
+    def get_reward(self, s, scale=1.0):
         if s in self.obstacles:
-            return -self.size*2-10.0, False
+            return -self.size*2.0-10.0, False
         if s in self.target_checker:
             self.target_checker.remove(s)
             if len(self.target_checker) > 0:
-                return 10.0, False
-            return 10.0, True
+                return 1.0*scale, False
+            return 1.0*scale, True
         return -1.0, False
 
     def render(self, **kwargs):

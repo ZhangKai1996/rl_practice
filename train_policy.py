@@ -2,7 +2,7 @@ import time
 
 import numpy as np
 
-from env import SnakeEnvV1
+from env import SnakeContinuousEnv
 from algo.policy_based import PolicyGradient
 
 
@@ -41,7 +41,7 @@ def train(env, algo, max_len=100, **kwargs):
 
 def main():
     # Environment
-    env = SnakeEnvV1(size=20, num_ladders=0, num_targets=1)
+    env = SnakeContinuousEnv(size=20, num_ladders=0, num_targets=1)
     # Parameters
     alpha = 0.001
     gamma = 0.99
