@@ -69,7 +69,7 @@ class EnvRender:
                 cv2.line(base_image, pos, self.pos_dict[v], (0, 0, 0), thickness=1)
 
         self.base_img = base_image
-        # cv2.imwrite('figs/base_image.png', base_image)
+        cv2.imwrite('figs/base_image.png', base_image)
 
     def draw(self, show=False, mode='algo'):
         env = self.env

@@ -42,7 +42,7 @@ class PlanningAgent:
             self.r = np.array([env.get_reward(s, scale=10.0)[0] for s in range(num_obs)])    # R2(s')
         else:
             self.r = np.array([env.get_reward1(s, scale=10.0)[0] for s in range(num_obs)])  # R2(s')
-        self.r = np.array([env.get_reward1(s, scale=rew)[0] for s in range(num_obs)])    # R2(s')
+        # self.r = np.array([env.get_reward1(s, scale=rew)[0] for s in range(num_obs)])    # R2(s')
 
         # else:
         #     self.r = np.array([np.random.random() for _ in range(num_obs)])    # R2(s')

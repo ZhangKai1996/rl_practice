@@ -56,6 +56,7 @@ class SnakeDiscreteEnv(gym.Env):
         targets = states[:self.num_targets]
         states = states[self.num_targets:]
         obstacles = states[:self.num_obstacles]
+        self.empty = states[self.num_obstacles:]
         return ladders, targets, obstacles
 
     def reset(self, reuse=False, verbose=False, **kwargs):
