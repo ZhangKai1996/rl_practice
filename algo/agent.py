@@ -1,17 +1,8 @@
 import numpy as np
 import tensorflow.compat.v1 as tf
 
-from .misc import softmax
 from common import ValueRender
 tf.compat.v1.disable_eager_execution()
-
-
-def reg(r):
-    r = r - np.min(r)
-    max_r = np.max(r)
-    if max_r > 0:
-        r /= max_r
-    return r
 
 
 class PlanningAgent:
@@ -29,24 +20,16 @@ class PlanningAgent:
                     continue
                 for s_prime, prob in zip(*env.ladders[s_prime]):
                     self.p[a, s, s_prime] = prob
-        # 对于规划智能体来说，奖励矩阵需要是静态的，例如在从一个起始点到达一个目标点的环境中，智能体到达目标点时
-        # 回合结束，奖励矩阵是固定不变的；但当环境任务变为从一个起始点先后到达多个目标点时，在智能体到达某个目标
-        # 点后，该目标点处的奖励会发生变化（清零或者降低），且回合并未结束。因此，规划智能体目前暂时只能用于解决
-        # 一个目标点的问题，也即环境中的目标数量为1。
-
-        if rew == 1:
+        if rew == 0:
             self.r = np.array([env.get_reward(s)[0] for s in range(num_obs)])     # R1(s')
+        elif rew == 1:
+            self.r = np.array([env.get_reward1(s)[0] for s in range(num_obs)])    # R2(s')
         elif rew == 2:
-            self.r = np.array([env.get_reward1(s)[0] for s in range(num_obs)])  # R2(s')
-        elif rew == 3:
             self.r = np.array([env.get_reward(s, scale=10.0)[0] for s in range(num_obs)])    # R2(s')
-        else:
+        elif rew == 3:
             self.r = np.array([env.get_reward1(s, scale=10.0)[0] for s in range(num_obs)])  # R2(s')
-        # self.r = np.array([env.get_reward1(s, scale=rew)[0] for s in range(num_obs)])    # R2(s')
-
-        # else:
-        #     self.r = np.array([np.random.random() for _ in range(num_obs)])    # R2(s')
-        # self.r = reg(self.r)
+        else:
+            self.r = np.array([np.random.random() for _ in range(num_obs)])
 
         random_actions = np.random.randint(0, num_act, size=(num_obs,))
         self.pi = np.eye(num_act)[random_actions]                       # $\pi$(s)
@@ -55,6 +38,14 @@ class PlanningAgent:
 
         self.env = env
         self.render = None
+
+    def action_sample(self, state):
+        # return np.argmax(self.agent.pi[state])
+        act_prob = self.pi[state]
+        acts = np.argwhere(act_prob == act_prob.max())
+        acts = acts.squeeze(axis=1)
+        np.random.shuffle(acts)
+        return acts[0]
 
     def visual(self, algo):
         if self.render is None:
@@ -67,13 +58,23 @@ class PlanningAgent:
 
 
 class LearningAgent:
-    def __init__(self, env):
+    def __init__(self, env, rew=0):
         self.num_obs = num_obs = env.observation_space.n
         self.num_act = num_act = env.action_space.n
 
-        self.r = [env.get_reward(s)[0] for s in range(num_obs)]  # R(s')
+        if rew == 0:
+            self.r = np.array([env.get_reward(s)[0] for s in range(num_obs)])     # R1(s')
+        elif rew == 1:
+            self.r = np.array([env.get_reward1(s)[0] for s in range(num_obs)])    # R2(s')
+        elif rew == 2:
+            self.r = np.array([env.get_reward(s, scale=10.0)[0] for s in range(num_obs)])    # R2(s')
+        elif rew == 3:
+            self.r = np.array([env.get_reward1(s, scale=10.0)[0] for s in range(num_obs)])  # R2(s')
+        else:
+            self.r = np.array([np.random.random() for _ in range(num_obs)])
+        # self.r = [env.get_reward(s)[0] for s in range(num_obs)]  # R(s')
         random_actions = np.random.randint(0, num_act, size=(num_obs,))
-        self.pi = np.eye(num_act)[random_actions]  # $\pi$(s)
+        self.pi = np.eye(num_act)[random_actions]           # $\pi$(s)
         self.q = np.zeros((num_obs, num_act))
         self.n = np.zeros((num_obs, num_act))
 
@@ -83,7 +84,13 @@ class LearningAgent:
     def play(self, s, epsilon=0.0):
         if np.random.rand() < epsilon:
             return np.random.randint(self.num_act)
-        return np.argmax(self.pi[s])
+        # return np.argmax(self.pi[s])
+
+        act_prob = self.pi[s]
+        acts = np.argwhere(act_prob == act_prob.max())
+        acts = acts.squeeze(axis=1)
+        np.random.shuffle(acts)
+        return acts[0]
 
     def visual(self, algo):
         if self.render is None:

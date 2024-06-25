@@ -2,7 +2,7 @@ import time
 
 import numpy as np
 
-from env import SnakeEnv
+from env import SnakeDiscreteEnv
 from algo.value_based import MonteCarlo, SARSA, QLearning
 
 
@@ -39,7 +39,7 @@ def train(env, algo, max_len=100, **kwargs):
 
 def main():
     # Environment
-    env = SnakeEnv(size=20, num_ladders=30, num_targets=3)
+    env = SnakeDiscreteEnv(size=20, num_ladders=30, num_targets=3)
     # Parameters
     alpha = 0.01
     gamma = 0.95
@@ -59,8 +59,8 @@ def main():
         'epsilon': epsilon
     }
     train(env, algo=MonteCarlo, **kwargs)
-    train(env, algo=SARSA, **kwargs)
-    train(env, algo=QLearning, **kwargs)
+    # train(env, algo=SARSA, **kwargs)
+    # train(env, algo=QLearning, **kwargs)
 
     env.close()
 

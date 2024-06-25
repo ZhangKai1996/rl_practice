@@ -1,156 +1,125 @@
-import time
-import numpy as np
-
-from env import SnakeDiscreteEnv
-from algo.basic import *
-
-
-def test(env, policy, name='algo', max_len=100, **kwargs):
-    state, done = env.reset(reuse=True, **kwargs), False
-    return_val = 0.0
-    step = 0
-    while not done:
-        # act = np.argmax(policy[state])
-        act_prob = policy[state]
-        acts = np.argwhere(act_prob == act_prob.max())
-        acts = acts.squeeze(axis=1)
-        np.random.shuffle(acts)
-        act = acts[0]
-
-        next_state, reward, done, _ = env.step(act, verbose=True, **kwargs)
-        return_val += reward
-        step += 1
-        state = next_state
-        # env.render(mode=name + ': {}/{}'.format(step, max_len))
-        if step >= max_len:
-            break
-    print('Total reward:', return_val)
-    print('Total step:', step)
-    return step, return_val, int(done)
+# 提取可能的路径
+def build_adjacency_list(edges):
+    graph = {}
+    for start, end in edges:
+        if start not in graph:
+            graph[start] = []
+        graph[start].append(end)
+    return graph
 
 
-def run(env, algo, max_len=100, **kwargs):
-    print('\n------------------------------------------')
-    env.reset(reuse=True, verbose=True)
-    algo = algo(env, **kwargs)
-    print('Algorithm: ', algo.name)
-    start = time.time()
-    pi_star, c_iter, c_count = algo.update()
-    delta = time.time() - start
-    print('Time consumption: ', delta)
-    result = test(env, pi_star, name=algo.name, max_len=max_len)
-    print('------------------------------------------')
-    return pi_star, [c_iter, c_count, delta, ] + list(result[1:])
+def find_root_node(edges):
+    children = {end for _, end in edges}
+    parents = {start for start, _ in edges}
+    root_candidates = parents - children
+    return list(root_candidates)
 
 
-def kl_divergence(p, q):
-    from scipy.stats import entropy
-    return entropy(p, q)
+def find_all_paths_from_root(graph, root):
+    def dfs(node, path, all_paths):
+        if node not in graph:  # If the node has no children, it's a leaf node
+            all_paths.append(path)
+            return
+        for neighbor in graph[node]:
+            dfs(neighbor, path + [neighbor], all_paths)
+
+    all_paths = []
+    dfs(root, [root], all_paths)
+    return all_paths
 
 
-def policy_similarity(p1, p2):
-    return int(np.all(p1 == p2))
+def extract_paths_from_root_to_leaves(edges):
+    graph = build_adjacency_list(edges)
+    root_nodes = find_root_node(edges)
+    all_paths = []
+    for root in root_nodes:
+        all_paths.extend(find_all_paths_from_root(graph, root))
+    return all_paths
 
 
-def policy_similarity_array(pis_):
-    pi_sim_array = np.zeros(shape=(len(pis_), len(pis_)))
-    for i, p1 in enumerate(pis_):
-        for j, p2 in enumerate(pis_):
-            pi_sim_array[i, j] = policy_similarity(p1, p2)
-    return pi_sim_array
-
-
-def main(size=30, ladders=0, targets=1, obstacles=50):
-    # Environment
-    env = SnakeDiscreteEnv(
-        size=size,
-        num_ladders=ladders,
-        num_targets=targets,
-        num_obstacles=obstacles
-    )
-    # Parameters
-    kwargs = {
-        'gamma': 0.95,
-        'max_len': 100,
-        'eval_iter': 128,
-        'improve_iter': 1000,
-        'rew': 0
+def main():
+    node_dict = {
+        642: [{'a': 1, 's_prime': 612, 'prob': 1.0}],
+        612: [{'a': 4, 's_prime': 611, 'prob': 1.0}],
+        611: [{'a': 4, 's_prime': 610, 'prob': 1.0}],
+        610: [{'a': 4, 's_prime': 609, 'prob': 1.0}],
+        609: [{'a': 4, 's_prime': 608, 'prob': 1.0}],
+        608: [{'a': 4, 's_prime': 607, 'prob': 1.0}],
+        607: [{'a': 1, 's_prime': 577, 'prob': 0.5}, {'a': 4, 's_prime': 606, 'prob': 0.5}],
+        577: [{'a': 4, 's_prime': 576, 'prob': 1.0}],
+        576: [{'a': 4, 's_prime': 575, 'prob': 1.0}],
+        575: [{'a': 4, 's_prime': 574, 'prob': 1.0}],
+        574: [{'a': 1, 's_prime': 544, 'prob': 1.0}],
+        544: [{'a': 4, 's_prime': 543, 'prob': 1.0}],
+        543: [{'a': 1, 's_prime': 513, 'prob': 1.0}],
+        513: [{'a': 4, 's_prime': 512, 'prob': 1.0}],
+        512: [{'a': 1, 's_prime': 482, 'prob': 1.0}],
+        482: [{'a': 1, 's_prime': 452, 'prob': 1.0}],
+        452: [{'a': 1, 's_prime': 422, 'prob': 1.0}],
+        422: [{'a': 0, 's_prime': 423, 'prob': 0.5}, {'a': 1, 's_prime': 392, 'prob': 0.5}],
+        423: [{'a': 1, 's_prime': 393, 'prob': 1.0}],
+        393: [{'a': 1, 's_prime': 363, 'prob': 1.0}],
+        363: [{'a': 1, 's_prime': 333, 'prob': 1.0}],
+        333: [{'a': 1, 's_prime': 303, 'prob': 1.0}],
+        303: [{'a': 1, 's_prime': 273, 'prob': 1.0}],
+        273: [{'a': 1, 's_prime': 243, 'prob': 1.0}],
+        243: [{'a': 1, 's_prime': 213, 'prob': 1.0}],
+        213: [{'a': 1, 's_prime': 183, 'prob': 1.0}],
+        183: [{'a': 1, 's_prime': 153, 'prob': 1.0}],
+        153: [{'a': 1, 's_prime': 123, 'prob': 1.0}],
+        123: [{'a': 1, 's_prime': 93, 'prob': 1.0}],
+        93: [{'a': 1, 's_prime': 63, 'prob': 1.0}],
+        63: [{'a': 0, 's_prime': 64, 'prob': 0.5}, {'a': 1, 's_prime': 33, 'prob': 0.5}],
+        64: [{'a': 1, 's_prime': 34, 'prob': 1.0}],
+        34: [{'a': 1, 's_prime': 4, 'prob': 1.0}],
+        33: [{'a': 0, 's_prime': 34, 'prob': 0.5}, {'a': 1, 's_prime': 3, 'prob': 0.5}],
+        3: [{'a': 0, 's_prime': 4, 'prob': 1.0}],
+        392: [{'a': 0, 's_prime': 393, 'prob': 0.5}, {'a': 1, 's_prime': 362, 'prob': 0.5}],
+        362: [{'a': 0, 's_prime': 363, 'prob': 0.5}, {'a': 1, 's_prime': 332, 'prob': 0.5}],
+        332: [{'a': 0, 's_prime': 333, 'prob': 0.5}, {'a': 1, 's_prime': 302, 'prob': 0.5}],
+        302: [{'a': 0, 's_prime': 303, 'prob': 0.5}, {'a': 1, 's_prime': 272, 'prob': 0.5}],
+        272: [{'a': 0, 's_prime': 273, 'prob': 0.5}, {'a': 1, 's_prime': 242, 'prob': 0.5}],
+        242: [{'a': 0, 's_prime': 243, 'prob': 0.5}, {'a': 1, 's_prime': 212, 'prob': 0.5}],
+        212: [{'a': 0, 's_prime': 213, 'prob': 0.5}, {'a': 1, 's_prime': 182, 'prob': 0.5}],
+        182: [{'a': 0, 's_prime': 183, 'prob': 0.5}, {'a': 1, 's_prime': 152, 'prob': 0.5}],
+        152: [{'a': 0, 's_prime': 153, 'prob': 0.5}, {'a': 1, 's_prime': 122, 'prob': 0.5}],
+        122: [{'a': 0, 's_prime': 123, 'prob': 0.5}, {'a': 1, 's_prime': 92, 'prob': 0.5}],
+        92: [{'a': 0, 's_prime': 93, 'prob': 0.5}, {'a': 1, 's_prime': 62, 'prob': 0.5}],
+        62: [{'a': 0, 's_prime': 63, 'prob': 0.5}, {'a': 1, 's_prime': 32, 'prob': 0.5}],
+        32: [{'a': 0, 's_prime': 33, 'prob': 0.5}, {'a': 1, 's_prime': 2, 'prob': 0.5}],
+        2: [{'a': 0, 's_prime': 3, 'prob': 1.0}],
+        606: [{'a': 1, 's_prime': 576, 'prob': 0.5}, {'a': 4, 's_prime': 605, 'prob': 0.5}],
+        605: [{'a': 1, 's_prime': 575, 'prob': 0.5}, {'a': 4, 's_prime': 604, 'prob': 0.5}],
+        604: [{'a': 1, 's_prime': 574, 'prob': 1.0}]
     }
-    # Algo: PI
-    pis_, outputs_ = [], []
-    for rew in [1, 2, 3, 4]:
-        kwargs['rew'] = rew
-        pi_, result = run(env, algo=PolicyIteration, **kwargs)
-        pis_.append(pi_)
-        outputs_.append(result)
-    env.close()
-    return pis_, outputs_
+    edges = []
+    new_node_dict = {}
+    for start, ends in node_dict.items():
+        new_ends = {}
+        for info in ends:
+            end = info.pop('s_prime')
+            edges.append((start, end))
+            new_ends[end] = info
+        new_node_dict[start] = new_ends
 
-
-def plot(pi_array, result_array):
+    all_paths = extract_paths_from_root_to_leaves(edges)
+    probs = []
+    for path in all_paths:
+        prob = 1.0
+        for i, p1 in enumerate(path[:-1]):
+            p2 = path[i+1]
+            prob *= new_node_dict[p1][p2]['prob']
+        probs.append(prob)
+        print('{:>2d}, {}'.format(len(path), prob), path)
+    probs = list(sorted(probs))
+    print(sum(probs), probs)
     import matplotlib.pyplot as plt
 
-    # Figure 1
     fig = plt.figure()
-    data = pi_array.mean(axis=0)
-    im = plt.imshow(data, cmap='hot')
-    plt.colorbar(im)
-    for i in range(data.shape[0]):
-        for j in range(data.shape[1]):
-            plt.text(j, i, round(data[i, j], 2), ha="center", va="center", color="blue")
-    plt.savefig('figs/record_{}_{}_{}_{}_{}_1.pdf'.format(
-        num_iter, size_, num_ladders, num_targets, num_obstacles
-    ))
-
-    # Figure 2
-    fig, axes = plt.subplots(4, 1)
-    plt.subplots_adjust(wspace=0.5, hspace=0.5)  # 调整子图间距
-
-    dones, pre_array = [], None
-    labels, iters, counts, returns = [], [], [], []
-    for k in range(result_array.shape[1]):
-        array = result_array[:, k]
-        dones.append(round(array[:, 4].mean() * 100, 2))
-        if k == 0:
-            pre_array = array.copy()
-            continue
-        labels.append('Pi_{}-Pi_1'.format(k + 1))
-        iters.append(array[:, 0] - pre_array[:, 0])
-        counts.append(array[:, 1] - pre_array[:, 1])
-        returns.append(array[:, 3] - pre_array[:, 3])
-
-    scales = list(range(len(labels)))
-    axes[0].set_title('Success Rate')
-    axes[0].plot(dones)
-    mean_return = [round(v, 2) for v in np.mean(returns, axis=1)]
-    axes[1].set_title('Mean of Return Delta')
-    axes[1].plot(scales, mean_return)
-    mean_iter = [round(v, 2) for v in np.mean(iters, axis=1)]
-    axes[2].set_title('Mean of Convergence Delta')
-    axes[2].plot(scales, mean_iter)
-    mean_count = [round(v, 2) for v in np.mean(counts, axis=1)]
-    axes[3].set_title('Mean of Count Delta')
-    axes[3].plot(scales, mean_count)
-    plt.savefig('figs/record_{}_{}_{}_{}_{}_2.pdf'.format(
-        num_iter, size_, num_ladders, num_targets, num_obstacles
-    ))
+    plt.plot(probs)
     plt.show()
 
 
 if __name__ == '__main__':
-    num_iter = 10
-    size_ = 30
-    num_ladders = 0
-    num_targets = 1
-    num_obstacles = 90
-
-    # main(size_, num_ladders, num_targets, num_obstacles)
-
-    pi_array_, result_array_ = [], []
-    for episode in range(num_iter):
-        print('{}/{}'.format(episode + 1, num_iter))
-        pis, results = main(size_, num_ladders, num_targets, num_obstacles)
-        pi_array_.append(policy_similarity_array(pis))
-        result_array_.append(results)
-    plot(np.array(pi_array_), np.array(result_array_))
+    main()
 

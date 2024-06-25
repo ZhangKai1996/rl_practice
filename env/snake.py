@@ -32,7 +32,10 @@ class SnakeDiscreteEnv(gym.Env):
 
     def __initialize(self, num_states):
         states = list(range(num_states))
-
+        # Generate obstacles
+        np.random.shuffle(states)
+        obstacles = states[:self.num_obstacles]
+        states = states[self.num_obstacles:]
         # Generate ladders
         ladders = {}
         for i in range(self.num_ladders):
@@ -52,29 +55,21 @@ class SnakeDiscreteEnv(gym.Env):
                 ['{:>3d}: {:>4.3f}'.format(v1, v2) for v1, v2 in zip(values1, values2)]
             )
         # Generate targets
-        np.random.shuffle(states)
         targets = states[:self.num_targets]
-        states = states[self.num_targets:]
-        obstacles = states[:self.num_obstacles]
-        self.empty = states[self.num_obstacles:]
+        self.empty = states[self.num_targets:]
         return ladders, targets, obstacles
 
-    def reset(self, reuse=False, verbose=False, **kwargs):
+    def reset(self, reuse=False, verbose=False):
         if not reuse:
             num_states = self.observation_space.n
             self.ladders, self.targets, self.obstacles = self.__initialize(num_states)
-            while True:
-                self.pos = self.start = np.random.randint(num_states)
-                if self.pos in self.ladders.keys():
-                    continue
-                if self.pos in self.obstacles:
-                    continue
-                break
+            np.random.shuffle(self.empty)
+            self.pos = self.start = self.empty[0]
         else:
             self.last_pos = self.pos = self.start
         self.target_checker = self.targets[:]
         if verbose:
-            print('>>> Targets: ', '-->'.join([str(v) for v in self.targets]))
+            print('>>> Targets: ', ', '.join([str(v) for v in self.targets]))
             print('>>> Obstacles: ', self.num_obstacles)
             print('>>> Start: ', self.pos, '(king\'s move)')
         return self.pos
@@ -154,13 +149,14 @@ class SnakeDiscreteEnv(gym.Env):
 
     def get_reward(self, s, scale=1.0):
         if s in self.obstacles:
-            return -self.size*2.0-10.0, False
+            # return -self.size*2.0-10.0, False
+            return 0.0, False
         if s in self.target_checker:
             self.target_checker.remove(s)
             if len(self.target_checker) > 0:
                 return 1.0*scale, False
             return 1.0*scale, True
-        return -1.0, False
+        return 0.0, False
 
     def render(self, **kwargs):
         if self.cv_render is None:

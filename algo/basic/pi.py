@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 
 from common.rendering import save_animation
@@ -12,6 +14,7 @@ class PolicyIteration:
         self.e_iter = int(1e6) if eval_iter <= 0 else eval_iter
         self.i_iter = int(1e6) if improve_iter <= 0 else improve_iter
         self.v_lst = []
+        print('Algorithm: ', self.name)
 
     def evaluate_pi(self):
         """
@@ -33,17 +36,19 @@ class PolicyIteration:
         return v
 
     def update(self):
-        count, iteration = 0, 0
+        start = time.time()
+        iteration = 0
         while True:
             iteration += 1
             # self.agent.visual(algo=self.name)
-            count += self.__evaluation(max_iter=self.e_iter)
+            self.__evaluation(max_iter=self.e_iter)
             if not self.__improvement() or iteration >= self.i_iter:
                 break
         print('Iteration: ', iteration)
+        print('Time consumption: ', time.time() - start)
         # save_animation(values=self.v_lst, r=self.agent.r, algo=self.name)
         # self.agent.visual(algo=self.name)
-        return self.agent.pi, iteration, count
+        return self.agent
 
     def __evaluation(self, max_iter):
         agent = self.agent

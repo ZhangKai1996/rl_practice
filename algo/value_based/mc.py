@@ -24,13 +24,11 @@ class MonteCarlo:
             if not self.__improvement():
                 print('Iteration: ', i+1)
                 break
-
         self.agent.visual(algo=self.name)
         return self.agent.pi
 
     def __evaluation(self):
         state = self.env.reset(reuse=True)
-
         experiences = []
         while True:
             action = self.agent.play(state, self.epsilon)
@@ -39,7 +37,6 @@ class MonteCarlo:
             state = next_state
             if done or len(experiences) >= self.max_len:
                 break
-
         values = []
         return_val = 0
         for (s, a, r) in reversed(experiences):
@@ -53,8 +50,13 @@ class MonteCarlo:
     def __improvement(self):
         new_policy = np.zeros_like(self.agent.pi)
         for s in range(self.agent.num_obs):
-            idx = np.argmax(self.agent.q[s, :])
-            new_policy[s, idx] = 1.0
+            # idx = np.argmax(self.agent.q[s, :])
+            # new_policy[s, idx] = 1.0
+            q_s = self.agent.q[s, :]
+            ids = np.argwhere(q_s == q_s.max())
+            ids = ids.squeeze(axis=1)
+            for idx in ids:
+                new_policy[s, idx] = 1.0 / len(ids)
 
         if np.all(np.equal(new_policy, self.agent.pi)):
             return False
