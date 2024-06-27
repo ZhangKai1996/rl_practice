@@ -1,125 +1,176 @@
-# 提取可能的路径
-def build_adjacency_list(edges):
-    graph = {}
-    for start, end in edges:
-        if start not in graph:
-            graph[start] = []
-        graph[start].append(end)
-    return graph
+
+import numpy as np
+from graphviz import Digraph
+import matplotlib.pyplot as plt
+
+from env import SnakeDiscreteEnv
+from algo.basic import *
+from algo.misc import regularize
+from common.utils import extract_all_paths
 
 
-def find_root_node(edges):
-    children = {end for _, end in edges}
-    parents = {start for start, _ in edges}
-    root_candidates = parents - children
-    return list(root_candidates)
+def train_and_test(env, algo, max_len=100, **kwargs):
+    print('\n------------------------------------------')
+    # Train
+    env.reset(reuse=True, verbose=True)
+    algo = algo(env, **kwargs)
+    agent = algo.update()
+
+    # Test
+    state, done = env.reset(reuse=True), False
+    return_val, step = 0.0, 0
+    while not done:
+        action = agent.action_sample(state)
+        next_state, reward, done, _ = env.step(action, verbose=True)
+        return_val += reward
+        step += 1
+        state = next_state
+        env.render(mode=algo.name + ': {}/{}'.format(step, max_len))
+        if step >= max_len:
+            break
+    print('Total reward:', return_val)
+    print('Total step:{}/{}'.format(step, max_len))
+
+    # Optimal Paths
+    node_dict = {}
+    state = env.reset(reuse=True)
+    transition(node_dict, state, agent.pi, env, 0, max_len)
+    print('------------------------------------------')
+    return agent, return_val, int(done), node_dict
 
 
-def find_all_paths_from_root(graph, root):
-    def dfs(node, path, all_paths):
-        if node not in graph:  # If the node has no children, it's a leaf node
-            all_paths.append(path)
+def transition(node_dict, state, policy, env, step, max_len):
+    if state in node_dict.keys():
+        return
+
+    node_dict[state] = {}
+    act_prob = policy[state]
+    acts = np.argwhere(act_prob == act_prob.max())
+    for act in acts.squeeze(axis=1):
+        new_state = env.execute_action(act, state)
+        if new_state == state:
+            continue
+        node_dict[state][new_state] = {'a': act, 's_prime': new_state, 'prob': act_prob[act]}
+        if new_state in env.targets:
             return
-        for neighbor in graph[node]:
-            dfs(neighbor, path + [neighbor], all_paths)
-
-    all_paths = []
-    dfs(root, [root], all_paths)
-    return all_paths
+        transition(node_dict, new_state, policy, env, step + 1, max_len)
+    if step >= max_len:
+        return
 
 
-def extract_paths_from_root_to_leaves(edges):
-    graph = build_adjacency_list(edges)
-    root_nodes = find_root_node(edges)
-    all_paths = []
-    for root in root_nodes:
-        all_paths.extend(find_all_paths_from_root(graph, root))
-    return all_paths
-
-
-def main():
-    node_dict = {
-        642: [{'a': 1, 's_prime': 612, 'prob': 1.0}],
-        612: [{'a': 4, 's_prime': 611, 'prob': 1.0}],
-        611: [{'a': 4, 's_prime': 610, 'prob': 1.0}],
-        610: [{'a': 4, 's_prime': 609, 'prob': 1.0}],
-        609: [{'a': 4, 's_prime': 608, 'prob': 1.0}],
-        608: [{'a': 4, 's_prime': 607, 'prob': 1.0}],
-        607: [{'a': 1, 's_prime': 577, 'prob': 0.5}, {'a': 4, 's_prime': 606, 'prob': 0.5}],
-        577: [{'a': 4, 's_prime': 576, 'prob': 1.0}],
-        576: [{'a': 4, 's_prime': 575, 'prob': 1.0}],
-        575: [{'a': 4, 's_prime': 574, 'prob': 1.0}],
-        574: [{'a': 1, 's_prime': 544, 'prob': 1.0}],
-        544: [{'a': 4, 's_prime': 543, 'prob': 1.0}],
-        543: [{'a': 1, 's_prime': 513, 'prob': 1.0}],
-        513: [{'a': 4, 's_prime': 512, 'prob': 1.0}],
-        512: [{'a': 1, 's_prime': 482, 'prob': 1.0}],
-        482: [{'a': 1, 's_prime': 452, 'prob': 1.0}],
-        452: [{'a': 1, 's_prime': 422, 'prob': 1.0}],
-        422: [{'a': 0, 's_prime': 423, 'prob': 0.5}, {'a': 1, 's_prime': 392, 'prob': 0.5}],
-        423: [{'a': 1, 's_prime': 393, 'prob': 1.0}],
-        393: [{'a': 1, 's_prime': 363, 'prob': 1.0}],
-        363: [{'a': 1, 's_prime': 333, 'prob': 1.0}],
-        333: [{'a': 1, 's_prime': 303, 'prob': 1.0}],
-        303: [{'a': 1, 's_prime': 273, 'prob': 1.0}],
-        273: [{'a': 1, 's_prime': 243, 'prob': 1.0}],
-        243: [{'a': 1, 's_prime': 213, 'prob': 1.0}],
-        213: [{'a': 1, 's_prime': 183, 'prob': 1.0}],
-        183: [{'a': 1, 's_prime': 153, 'prob': 1.0}],
-        153: [{'a': 1, 's_prime': 123, 'prob': 1.0}],
-        123: [{'a': 1, 's_prime': 93, 'prob': 1.0}],
-        93: [{'a': 1, 's_prime': 63, 'prob': 1.0}],
-        63: [{'a': 0, 's_prime': 64, 'prob': 0.5}, {'a': 1, 's_prime': 33, 'prob': 0.5}],
-        64: [{'a': 1, 's_prime': 34, 'prob': 1.0}],
-        34: [{'a': 1, 's_prime': 4, 'prob': 1.0}],
-        33: [{'a': 0, 's_prime': 34, 'prob': 0.5}, {'a': 1, 's_prime': 3, 'prob': 0.5}],
-        3: [{'a': 0, 's_prime': 4, 'prob': 1.0}],
-        392: [{'a': 0, 's_prime': 393, 'prob': 0.5}, {'a': 1, 's_prime': 362, 'prob': 0.5}],
-        362: [{'a': 0, 's_prime': 363, 'prob': 0.5}, {'a': 1, 's_prime': 332, 'prob': 0.5}],
-        332: [{'a': 0, 's_prime': 333, 'prob': 0.5}, {'a': 1, 's_prime': 302, 'prob': 0.5}],
-        302: [{'a': 0, 's_prime': 303, 'prob': 0.5}, {'a': 1, 's_prime': 272, 'prob': 0.5}],
-        272: [{'a': 0, 's_prime': 273, 'prob': 0.5}, {'a': 1, 's_prime': 242, 'prob': 0.5}],
-        242: [{'a': 0, 's_prime': 243, 'prob': 0.5}, {'a': 1, 's_prime': 212, 'prob': 0.5}],
-        212: [{'a': 0, 's_prime': 213, 'prob': 0.5}, {'a': 1, 's_prime': 182, 'prob': 0.5}],
-        182: [{'a': 0, 's_prime': 183, 'prob': 0.5}, {'a': 1, 's_prime': 152, 'prob': 0.5}],
-        152: [{'a': 0, 's_prime': 153, 'prob': 0.5}, {'a': 1, 's_prime': 122, 'prob': 0.5}],
-        122: [{'a': 0, 's_prime': 123, 'prob': 0.5}, {'a': 1, 's_prime': 92, 'prob': 0.5}],
-        92: [{'a': 0, 's_prime': 93, 'prob': 0.5}, {'a': 1, 's_prime': 62, 'prob': 0.5}],
-        62: [{'a': 0, 's_prime': 63, 'prob': 0.5}, {'a': 1, 's_prime': 32, 'prob': 0.5}],
-        32: [{'a': 0, 's_prime': 33, 'prob': 0.5}, {'a': 1, 's_prime': 2, 'prob': 0.5}],
-        2: [{'a': 0, 's_prime': 3, 'prob': 1.0}],
-        606: [{'a': 1, 's_prime': 576, 'prob': 0.5}, {'a': 4, 's_prime': 605, 'prob': 0.5}],
-        605: [{'a': 1, 's_prime': 575, 'prob': 0.5}, {'a': 4, 's_prime': 604, 'prob': 0.5}],
-        604: [{'a': 1, 's_prime': 574, 'prob': 1.0}]
+def run(episode, size=30, ladders=0, targets=1, obstacles=50):
+    # Environment
+    env = SnakeDiscreteEnv(
+        size=size,
+        num_ladders=ladders,
+        num_targets=targets,
+        num_obstacles=obstacles
+    )
+    # Parameters
+    kwargs = {
+        'gamma': 0.95,
+        'max_len': int(1e2),
+        'eval_iter': 128,
+        'improve_iter': 1000,
+        'rew': 0
     }
-    edges = []
-    new_node_dict = {}
-    for start, ends in node_dict.items():
-        new_ends = {}
-        for info in ends:
-            end = info.pop('s_prime')
-            edges.append((start, end))
-            new_ends[end] = info
-        new_node_dict[start] = new_ends
+    # Algo: PI (rew=0)
+    agent1, return1, done1, node_dict1 = train_and_test(env, algo=PolicyIteration, **kwargs)
+    # Algo: PI (rew=1)
+    kwargs['rew'] = 1
+    agent2, return2, done2, node_dict2 = train_and_test(env, algo=PolicyIteration, **kwargs)
+    env.close()
 
-    all_paths = extract_paths_from_root_to_leaves(edges)
+    fig, axes = plt.subplots(2, 1)
+    axes[0].plot(regularize(agent1.v.reshape(-1)), label='v')
+    axes[0].plot(regularize(agent1.r.reshape(-1)), label='r')
+    axes[1].plot(regularize(agent2.v.reshape(-1)), label='v')
+    axes[1].plot(regularize(agent2.r.reshape(-1)), label='r')
+    [ax.legend() for ax in axes]
+    plt.show()
+
+    edges1, probs1 = plot_tree(node_dict1, agent1.p, filename='graph1_{}'.format(episode))
+    edges2, probs2 = plot_tree(node_dict2, agent2.p, filename='graph2_{}'.format(episode))
+    sim_array = policy_comp(agent1.pi, agent2.pi, env)
+    plot_data(sim_array, {'graph1': probs1, 'graph2': probs2}, prefix=episode)
+    return (
+        episode,
+        int(np.all(agent1.pi == agent2.pi)),
+        int(node_dict1 == node_dict2),
+        int(all([edge in edges2 for edge in edges1])),
+        int(all([edge in edges1 for edge in edges2])),
+        done1, done2
+    )
+
+
+def policy_comp(p1, p2, env):
+    size = env.size
+    sim_array = np.ones(shape=(size, size))
+    for idx, act_prob1 in enumerate(p1):
+        if idx in env.obstacles:
+            continue
+        act_prob2 = p2[idx]
+        i, j = idx // size, idx % size
+        sim_array[i, j] = np.all(act_prob1 == act_prob2)
+    return sim_array
+
+
+def plot_tree(node_dict, p, filename):
+    g = Digraph('G', filename='figs/' + filename + '.gv')
+    edges = []
+    for start, info in node_dict.items():
+        name = str(start)
+        g.node(name, label=name)
+        for end, v in info.items():
+            g.edge(name, str(end), label='{}({:>4.2f})'.format(v['a'], v['prob']))
+            edges.append((start, end))
+    # 提取所有最优路径
+    all_paths = extract_all_paths(edges)
     probs = []
     for path in all_paths:
         prob = 1.0
-        for i, p1 in enumerate(path[:-1]):
-            p2 = path[i+1]
-            prob *= new_node_dict[p1][p2]['prob']
+        for i, s1 in enumerate(path[:-1]):
+            s2 = path[i+1]
+            info = node_dict[s1][s2]
+            prob *= info['prob'] * p[info['a'], s1, s2]
         probs.append(prob)
-        print('{:>2d}, {}'.format(len(path), prob), path)
+        # print('\t>>> {:>2d}, {}'.format(len(path), prob), path)
     probs = list(sorted(probs))
-    print(sum(probs), probs)
-    import matplotlib.pyplot as plt
+    print(sum(probs))
+    # 渲染
+    g.render(cleanup=True, format='png')
+    return edges, probs
 
-    fig = plt.figure()
-    plt.plot(probs)
-    plt.show()
+
+def plot_data(data, probs, prefix):
+    fig, axes = plt.subplots(2, 1)
+    plt.colorbar(axes[0].imshow(data, cmap='hot'))
+    # for i in range(data.shape[0]):
+    #     for j in range(data.shape[1]):
+    #         axes[0].text(j, i, round(data[i, j], 1), size=6,
+    #                 ha="center", va="center", color="blue")
+    for key, value in probs.items():
+        axes[1].plot(value, label=key)
+    axes[1].legend()
+    plt.savefig('figs/sim_and_prob_{}.png'.format(prefix))
+
+
+def main():
+    num_iter = 1
+    size_ = 30
+    num_ladders = 0
+    num_targets = 1
+    num_obstacles = 270
+
+    result_array = []
+    for episode in range(num_iter):
+        print('{}/{}'.format(episode + 1, num_iter))
+        result = run(episode+1, size_, num_ladders, num_targets, num_obstacles)
+        result_array.append(result)
+    result_array = np.array(result_array)
+    print(num_iter, len(result_array), result_array[:, 1:].mean(axis=0))
+    print(result_array)
 
 
 if __name__ == '__main__':
     main()
-
