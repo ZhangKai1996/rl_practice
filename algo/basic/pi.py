@@ -1,5 +1,6 @@
 import time
 
+from tqdm import tqdm
 import numpy as np
 
 from common.rendering import save_animation
@@ -37,15 +38,14 @@ class PolicyIteration:
 
     def update(self):
         start = time.time()
-        iteration = 0
-        while True:
-            iteration += 1
+        for iteration in tqdm(range(self.i_iter), desc='Iteration'):
             # self.agent.visual(algo=self.name)
             self.__evaluation(max_iter=self.e_iter)
-            if not self.__improvement() or iteration >= self.i_iter:
+            if not self.__improvement():
+                print('Iteration: ', iteration)
+                print('Time consumption: ', time.time() - start)
                 break
-        print('Iteration: ', iteration)
-        print('Time consumption: ', time.time() - start)
+
         # save_animation(values=self.v_lst, r=self.agent.r, algo=self.name)
         # self.agent.visual(algo=self.name)
         return self.agent

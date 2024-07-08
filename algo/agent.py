@@ -2,46 +2,62 @@ import numpy as np
 import tensorflow.compat.v1 as tf
 
 from common import ValueRender
+
 tf.compat.v1.disable_eager_execution()
 
 
 class PlanningAgent:
-    def __init__(self, env, rew=0, **kwargs):
-        self.num_obs = num_obs = env.observation_space.n
-        self.num_act = num_act = env.action_space.n
+    def __init__(self, env, **kwargs):
+        self.env = env
+        self.num_obs = env.observation_space.n
+        self.num_act = env.action_space.n
+        self.__build_model()
+        self.render = None
+
+    def __build_model(self):
+        env = self.env
+        num_obs, num_act = self.num_obs, self.num_act
 
         self.p = np.zeros([num_act, num_obs, num_obs], dtype=np.float32)  # P(s'|s,a)
-        for s in range(num_obs):
-            if s in env.obstacles: continue
-            for a in range(num_act):
-                s_prime = env.execute_action(a, s)
-                if s_prime not in env.ladders.keys():
-                    self.p[a, s, s_prime] = 1.0
+        self.r = np.zeros([num_obs, ], dtype=np.float32)                  # R(s')
+        for i, (s, info) in enumerate(env.state_dict.items()):
+            pos = info['pos']
+            coin_checker = {
+                coin: int(info['status'][j])
+                for j, coin in enumerate(env.coins)
+            }
+            self.r[i] = env.get_reward(state=s)[0]
+            # print('{}({})'.format(s, pos), info, coin_checker, self.r[i])
+            if pos in env.barriers: continue
+            if pos in coin_checker.keys():
+                if all([status == 1 for status in coin_checker.values()]):
                     continue
-                for s_prime, prob in zip(*env.ladders[s_prime]):
-                    self.p[a, s, s_prime] = prob
-        if rew == 0:
-            self.r = np.array([env.get_reward(s)[0] for s in range(num_obs)])     # R1(s')
-        elif rew == 1:
-            self.r = np.array([env.get_reward1(s)[0] for s in range(num_obs)])    # R2(s')
-        elif rew == 2:
-            self.r = np.array([env.get_reward(s, scale=10.0)[0] for s in range(num_obs)])    # R2(s')
-        elif rew == 3:
-            self.r = np.array([env.get_reward1(s, scale=10.0)[0] for s in range(num_obs)])  # R2(s')
-        else:
-            self.r = np.array([np.random.random() for _ in range(num_obs)])
-
+            for a in range(num_act):
+                env.pos = pos
+                env.coin_checker = coin_checker.copy()
+                s_prime, *_ = env.step(a)
+                # print('\t---', s_prime, env.pos, env.coin_checker, coin_checker, end=' ')
+                # info_prime = env.state_dict[s_prime]
+                # print('{} {:>4d}({:>3d}) {:>3d}'.format(
+                #     a, s_prime, info_prime['pos'], env.pos),
+                #     '{:>+7.2f} {}'.format(reward, int(done))
+                # )
+                k = env.state_list.index(s_prime)
+                self.p[a, i, k] = 1.0
+                # if s_prime not in env.ladders.keys():
+                #     self.p[a, s, s_prime] = 1.0
+                #     continue
+                # for s_prime, prob in zip(*env.ladders[s_prime]):
+                #     self.p[a, s, s_prime] = prob
         random_actions = np.random.randint(0, num_act, size=(num_obs,))
-        self.pi = np.eye(num_act)[random_actions]                       # $\pi$(s)
-        self.v = np.zeros((num_obs,))                                   # V(s)
-        self.q = np.zeros((num_obs, num_act))                           # Q(s,a)
-
-        self.env = env
-        self.render = None
+        self.pi = np.eye(num_act)[random_actions]  # $\pi$(s)
+        self.v = np.zeros((num_obs,))  # V(s)
+        self.q = np.zeros((num_obs, num_act))  # Q(s,a)
 
     def action_sample(self, state):
         # return np.argmax(self.agent.pi[state])
-        act_prob = self.pi[state]
+        idx = self.env.state_list.index(state)
+        act_prob = self.pi[idx]
         acts = np.argwhere(act_prob == act_prob.max())
         acts = acts.squeeze(axis=1)
         np.random.shuffle(acts)
@@ -58,23 +74,13 @@ class PlanningAgent:
 
 
 class LearningAgent:
-    def __init__(self, env, rew=0):
+    def __init__(self, env):
         self.num_obs = num_obs = env.observation_space.n
         self.num_act = num_act = env.action_space.n
 
-        if rew == 0:
-            self.r = np.array([env.get_reward(s)[0] for s in range(num_obs)])     # R1(s')
-        elif rew == 1:
-            self.r = np.array([env.get_reward1(s)[0] for s in range(num_obs)])    # R2(s')
-        elif rew == 2:
-            self.r = np.array([env.get_reward(s, scale=10.0)[0] for s in range(num_obs)])    # R2(s')
-        elif rew == 3:
-            self.r = np.array([env.get_reward1(s, scale=10.0)[0] for s in range(num_obs)])  # R2(s')
-        else:
-            self.r = np.array([np.random.random() for _ in range(num_obs)])
-        # self.r = [env.get_reward(s)[0] for s in range(num_obs)]  # R(s')
+        self.r = np.array([env.get_reward(s)[0] for s in range(num_obs)])  # R1(s')
         random_actions = np.random.randint(0, num_act, size=(num_obs,))
-        self.pi = np.eye(num_act)[random_actions]           # $\pi$(s)
+        self.pi = np.eye(num_act)[random_actions]  # $\pi$(s)
         self.q = np.zeros((num_obs, num_act))
         self.n = np.zeros((num_obs, num_act))
 
@@ -108,8 +114,8 @@ class LearningAgent:
 
         # 画出V值表和Q值表
         self.render.draw(
-            values={'v': v, 'q': self.q},
-            # values={'v': v, 'r': self.r},
+            # values={'v': v, 'q': self.q},
+            values={'v': v, 'r': self.r},
         )
 
 

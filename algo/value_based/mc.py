@@ -25,7 +25,7 @@ class MonteCarlo:
                 print('Iteration: ', i+1)
                 break
         self.agent.visual(algo=self.name)
-        return self.agent.pi
+        return self.agent
 
     def __evaluation(self):
         state = self.env.reset(reuse=True)

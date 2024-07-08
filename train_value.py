@@ -6,14 +6,14 @@ from env import SnakeDiscreteEnv
 from algo.value_based import MonteCarlo, SARSA, QLearning
 
 
-def test(env, policy, name='algo', max_len=100, **kwargs):
+def test(env, agent, name='algo', max_len=100, **kwargs):
     state, done = env.reset(reuse=True, **kwargs), False
     return_val = 0.0
     step = 0
 
     while not done:
-        act = np.argmax(policy[state])
-        next_state, reward, done, _ = env.step(act, **kwargs)
+        act = agent.play(state, epsilon=0.0)
+        next_state, reward, done, _ = env.step(act, verbose=True, **kwargs)
         return_val += reward
         step += 1
         state = next_state
@@ -31,21 +31,21 @@ def train(env, algo, max_len=100, **kwargs):
     algo = algo(env, **kwargs)
     print('Algorithm: ', algo.name)
     start = time.time()
-    pi = algo.update()
+    agent = algo.update()
     print('Time consumption: ', time.time() - start)
-    test(env, pi, name=algo.name, max_len=max_len)
+    test(env, agent, name=algo.name, max_len=max_len)
     print('------------------------------------------')
 
 
 def main():
     # Environment
-    env = SnakeDiscreteEnv(size=20, num_ladders=30, num_targets=3)
+    env = SnakeDiscreteEnv(size=20, num_ladders=0, num_targets=5, num_obstacles=0)
     # Parameters
     alpha = 0.01
     gamma = 0.95
-    epsilon = 0.5
+    epsilon = 0.8
     max_len = 100
-    eval_iter = 128
+    eval_iter = 512
     improve_iter = 1000
 
     # algo: MC, TD

@@ -41,7 +41,7 @@ class EnvRender:
                 idx = i + j * size
                 self.pos_dict[idx] = pos
                 # Draw grids
-                thickness = -1 if idx in env.obstacles else 2
+                thickness = -1 if idx in env.barriers else 2
                 cv2.rectangle(
                     base_image,
                     (int(pos[0] - border_len / 2), int(pos[1] - border_len / 2)),
@@ -50,10 +50,12 @@ class EnvRender:
                     thickness=thickness
                 )
                 # Draw targets
-                if idx in env.targets:
-                    cv2.circle(base_image, pos, 10, (0, 255, 0), thickness=-1)
-                if idx == env.start:
+                if idx in env.coins:
+                    cv2.circle(base_image, pos, 10, (0, 255, 0), thickness=2)
+                elif idx == env.start:
                     cv2.circle(base_image, pos, 10, (255, 0, 0), thickness=2)
+                elif idx in env.mud:
+                    cv2.circle(base_image, pos, 10, (0, 255, 255), thickness=-1)
                 # Draw state
                 if i == 0:
                     cv2.putText(
@@ -85,13 +87,15 @@ class EnvRender:
         )
         pos = self.pos_dict[env.pos]
         cv2.circle(base_img, pos, 10, (255, 0, 0))
-        cv2.putText(
-            base_img,
-            env.env_info,
-            (width + 20, 20),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5, (0, 0, 0), 1, cv2.LINE_AA
-        )
+        # Draw targets
+        for target, status in env.coin_checker.items():
+            thickness = -1 if status == 1 else 2
+            cv2.circle(
+                base_img,
+                self.pos_dict[target],
+                10, (0, 255, 0),
+                thickness=thickness
+            )
         last_pos = self.pos_dict[env.last_pos]
         cv2.line(self.base_img, pos, last_pos, (0, 0, 0), thickness=1)
         self.video.write(base_img)
@@ -211,7 +215,7 @@ class ValueRender:
                     )
         return base_img
 
-    def __draw_v(self, value_pi, w_p, h_p, size, border_len, reg=True):
+    def __draw_v(self, value_pi, w_p, h_p, size, border_len, reg=False):
         base_img = copy.deepcopy(self.base_img)
         env = self.env
 
@@ -234,7 +238,7 @@ class ValueRender:
                 pos = (column, row)
                 idx = i + j * size
                 v_pi = value_pi[i + j * size]
-                if idx in env.obstacles:
+                if idx in env.barriers:
                     pixel = 0
                 elif not reg:
                     pixel = 255
@@ -257,8 +261,8 @@ class ValueRender:
                     0.4, (255, 0, 255), 1, cv2.LINE_AA
                 )
                 # Draw targets
-                if idx in env.targets:
-                    cv2.circle(base_img, pos, 10, (0, 255, 0), thickness=-1)
+                if idx in env.coins:
+                    cv2.circle(base_img, pos, 10, (0, 255, 0), thickness=2)
                 if idx == env.start:
                     cv2.circle(base_img, pos, 10, (255, 0, 0), thickness=2)
                 # Draw state
@@ -299,8 +303,8 @@ def save_animation(values, r, algo, reg=True):
         ax1.cla()  # 清除当前图形
         ax1.set_title('Reward')
         num = int(np.sqrt(len(r)))
-        x = np.linspace(0, num-1, num)
-        y = np.linspace(0, num-1, num)
+        x = np.linspace(0, num - 1, num)
+        y = np.linspace(0, num - 1, num)
         x_grid, y_grid = np.meshgrid(x, y)
         z = np.array(r).reshape(num, num)
         ax1.plot_surface(x_grid, y_grid, z, cmap='rainbow')
@@ -314,8 +318,8 @@ def save_animation(values, r, algo, reg=True):
         if reg:
             value = regularize(value)
         num = int(np.sqrt(len(value)))
-        x = np.linspace(0, num-1, num)
-        y = np.linspace(0, num-1, num)
+        x = np.linspace(0, num - 1, num)
+        y = np.linspace(0, num - 1, num)
         x_grid, y_grid = np.meshgrid(x, y)
         z = value.reshape(num, num)
         # print(frame, x_grid.shape, y_grid.shape, z.shape)
