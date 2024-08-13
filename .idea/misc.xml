@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="mapd_py38" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="mapd_py38" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="rl_practice" project-jdk-type="Python SDK" />
 </project>

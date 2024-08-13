@@ -52,10 +52,30 @@ class EnvRender:
                 # Draw targets
                 if idx in env.coins:
                     cv2.circle(base_image, pos, 10, (0, 255, 0), thickness=2)
+                    cv2.putText(
+                        base_image, 'g', pos,
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 0), 1, cv2.LINE_AA
+                    )
                 elif idx == env.start:
                     cv2.circle(base_image, pos, 10, (255, 0, 0), thickness=2)
+                    cv2.putText(
+                        base_image, 'b', pos,
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 0), 1, cv2.LINE_AA
+                    )
                 elif idx in env.mud:
                     cv2.circle(base_image, pos, 10, (0, 255, 255), thickness=-1)
+                    cv2.putText(
+                        base_image, 'm', pos,
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 0), 1, cv2.LINE_AA
+                    )
+                # cv2.putText(
+                #     base_image, str(idx), pos,
+                #     cv2.FONT_HERSHEY_SIMPLEX,
+                #     0.5, (0, 0, 0), 1, cv2.LINE_AA
+                # )
                 # Draw state
                 if i == 0:
                     cv2.putText(
@@ -164,6 +184,7 @@ class ValueRender:
 
     def __draw_q(self, value, w_p, h_p, size, border_len):
         base_img = copy.deepcopy(self.base_img)
+        print(value.shape)
 
         for i in range(size):
             column = int(border_len / 2 + i * border_len + w_p)
@@ -184,7 +205,7 @@ class ValueRender:
                 y2_out = int(pos[1] + border_len / 2)
 
                 # Draw targets
-                if idx in self.env.targets:
+                if idx in self.env.coins:
                     cv2.circle(base_img, pos, 10, (0, 255, 0), thickness=-1)
                 if idx == self.env.start:
                     cv2.circle(base_img, pos, 10, (255, 0, 0), thickness=2)
@@ -254,11 +275,11 @@ class ValueRender:
                 )
                 cv2.putText(
                     base_img,
-                    str(round(v_pi, 2)),
+                    str(round(v_pi, 1)),
                     # str(round(v_pi, 2)),
                     (pos[0] - 10, pos[1]),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.4, (255, 0, 255), 1, cv2.LINE_AA
+                    0.3, (255, 0, 255), 1, cv2.LINE_AA
                 )
                 # Draw targets
                 if idx in env.coins:

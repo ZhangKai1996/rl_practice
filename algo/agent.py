@@ -22,12 +22,9 @@ class PlanningAgent:
         self.r = np.zeros([num_obs, ], dtype=np.float32)                  # R(s')
         for i, (s, info) in enumerate(env.state_dict.items()):
             pos = info['pos']
-            coin_checker = {
-                coin: int(info['status'][j])
-                for j, coin in enumerate(env.coins)
-            }
-            self.r[i] = env.get_reward(state=s)[0]
-            # print('{}({})'.format(s, pos), info, coin_checker, self.r[i])
+            coin_checker = {c: int(info['status'][j]) for j, c in enumerate(env.coins)}
+            env.coin_checker = coin_checker.copy()
+            self.r[i] = env.get_reward(pos=pos)[0]
             if pos in env.barriers: continue
             if pos in coin_checker.keys():
                 if all([status == 1 for status in coin_checker.values()]):
@@ -35,24 +32,18 @@ class PlanningAgent:
             for a in range(num_act):
                 env.pos = pos
                 env.coin_checker = coin_checker.copy()
-                s_prime, *_ = env.step(a)
-                # print('\t---', s_prime, env.pos, env.coin_checker, coin_checker, end=' ')
-                # info_prime = env.state_dict[s_prime]
-                # print('{} {:>4d}({:>3d}) {:>3d}'.format(
-                #     a, s_prime, info_prime['pos'], env.pos),
-                #     '{:>+7.2f} {}'.format(reward, int(done))
-                # )
+                s_prime, _, *_ = env.step(a)
+                p_prime = env.state_dict[s_prime]['pos']
                 k = env.state_list.index(s_prime)
-                self.p[a, i, k] = 1.0
-                # if s_prime not in env.ladders.keys():
-                #     self.p[a, s, s_prime] = 1.0
-                #     continue
-                # for s_prime, prob in zip(*env.ladders[s_prime]):
-                #     self.p[a, s, s_prime] = prob
+                if p_prime not in env.ladders.keys():
+                    self.p[a, i, k] = 1.0
+                    continue
+                for p_prime, prob in zip(*env.ladders[s_prime]):
+                    self.p[a, i, k] = prob
         random_actions = np.random.randint(0, num_act, size=(num_obs,))
-        self.pi = np.eye(num_act)[random_actions]  # $\pi$(s)
-        self.v = np.zeros((num_obs,))  # V(s)
-        self.q = np.zeros((num_obs, num_act))  # Q(s,a)
+        self.pi = np.eye(num_act)[random_actions]    # pi(s)
+        self.v = np.zeros((num_obs,))                # V(s)
+        self.q = np.zeros((num_obs, num_act))        # Q(s,a)
 
     def action_sample(self, state):
         # return np.argmax(self.agent.pi[state])

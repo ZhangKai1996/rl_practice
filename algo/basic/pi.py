@@ -5,6 +5,7 @@ import numpy as np
 
 from common.rendering import save_animation
 from algo.agent import PlanningAgent
+from algo.misc import softmax
 
 
 class PolicyIteration:
@@ -36,18 +37,16 @@ class PolicyIteration:
         v = np.linalg.solve(a, b)
         return v
 
-    def update(self):
-        start = time.time()
+    def update(self, prefix=''):
+        count, start = 0, time.time()
         for iteration in tqdm(range(self.i_iter), desc='Iteration'):
-            # self.agent.visual(algo=self.name)
-            self.__evaluation(max_iter=self.e_iter)
+            count += self.__evaluation(max_iter=self.e_iter)
             if not self.__improvement():
-                print('Iteration: ', iteration)
+                print('Iteration: {}({})'.format(iteration, count))
                 print('Time consumption: ', time.time() - start)
                 break
-
         # save_animation(values=self.v_lst, r=self.agent.r, algo=self.name)
-        # self.agent.visual(algo=self.name)
+        self.agent.visual(algo=self.name+'_'+prefix)
         return self.agent
 
     def __evaluation(self, max_iter):
@@ -75,11 +74,9 @@ class PolicyIteration:
         v = agent.v
         r = agent.r
         for s in range(agent.num_obs):
-            q_s = agent.q[s, :] = np.dot(agent.p[:, s, :], r + self.gamma * v)
-            # idx = np.argmax(q_s)
-            # new_policy[s, idx] = 1.0
-            ids = np.argwhere(q_s == q_s.max())
-            ids = ids.squeeze(axis=1)
+            q = np.dot(agent.p[:, s, :], r + self.gamma * v)
+            agent.q[s, :] = q[:]
+            ids = np.argwhere(q == q.max()).squeeze(axis=1)
             for idx in ids:
                 new_policy[s, idx] = 1.0 / len(ids)
         if np.all(np.equal(new_policy, agent.pi)):

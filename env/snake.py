@@ -26,6 +26,7 @@ class SnakeDiscreteEnv(gym.Env):
         self.coin_checker = {}
 
         self.cv_render = None
+        self.ranges = None
         self.reset(verbose=True)
 
         self.__build_table()
@@ -97,6 +98,7 @@ class SnakeDiscreteEnv(gym.Env):
             self.__initialize()
             np.random.shuffle(self.empty)
             self.pos = self.start = self.empty[0]
+            self.ranges = (-1.0, 0.0, +1.0)  # s_b, s_m, s_g
         else:
             self.last_pos = self.pos = self.start
         self.coin_checker = {pos: 0 for pos in self.coins}
@@ -135,36 +137,27 @@ class SnakeDiscreteEnv(gym.Env):
                 self.coin_checker[new_pos] = 1
         reward, done, terminated = self.get_reward(pos=new_pos)
         if verbose:
-            print('\t--> {:>3d} {} {:>3d} {:>+6.1f} {} {}'.format(
+            print('\t--> {:>3d} {} {:>3d} {:>+6.2f} {} {}'.format(
                 pos, action, new_pos, reward, int(done), int(terminated))
             )
         self.last_pos = pos
         self.pos = new_pos
         return self.get_state(), reward, done, terminated
 
-    def get_reward1(self, state, scale=1.0):
-        info = self.state_dict[state]
-        if info['pos'] in self.barriers:
-            return -10.0*scale
-        dists = []
-        for target in self.coin_checker.values():
-            dists.append(distance(info['pos'], target, size=self.size))
-        return -float(min(dists)) * scale
-
     def get_reward(self, state=None, pos=None):
         if pos is None:
             pos = self.state_dict[state]['pos']
 
         if pos in self.barriers:
-            reward, done, terminated = -100.0, False, True
+            reward, done, terminated = -1.0 * self.ranges[0], False, True
         elif pos in self.mud:
-            reward, done, terminated = -10.0, False, False
+            reward, done, terminated = -1.0, False, False
         elif pos in self.coin_checker.keys():
             done = all([status == 1 for status in self.coin_checker.values()])
             terminated = False
-            reward = +100.0 if done else -1.0
+            reward = +1.0*self.ranges[2] if done else -1.0 * self.ranges[1]
         else:
-            reward, done, terminated = -1.0, False, False
+            reward, done, terminated = -1.0 * self.ranges[1], False, False
         return reward, done, terminated
 
     def render(self, **kwargs):
