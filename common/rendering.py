@@ -52,25 +52,25 @@ class EnvRender:
                 # Draw targets
                 if idx in env.coins:
                     cv2.circle(base_image, pos, 10, (0, 255, 0), thickness=2)
-                    cv2.putText(
-                        base_image, 'g', pos,
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0, 0, 0), 1, cv2.LINE_AA
-                    )
+                    # cv2.putText(
+                    #     base_image, 'g', pos,
+                    #     cv2.FONT_HERSHEY_SIMPLEX,
+                    #     0.5, (0, 0, 0), 1, cv2.LINE_AA
+                    # )
                 elif idx == env.start:
                     cv2.circle(base_image, pos, 10, (255, 0, 0), thickness=2)
-                    cv2.putText(
-                        base_image, 'b', pos,
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0, 0, 0), 1, cv2.LINE_AA
-                    )
+                    # cv2.putText(
+                    #     base_image, 'b', pos,
+                    #     cv2.FONT_HERSHEY_SIMPLEX,
+                    #     0.5, (0, 0, 0), 1, cv2.LINE_AA
+                    # )
                 elif idx in env.mud:
                     cv2.circle(base_image, pos, 10, (0, 255, 255), thickness=-1)
-                    cv2.putText(
-                        base_image, 'm', pos,
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0, 0, 0), 1, cv2.LINE_AA
-                    )
+                    # cv2.putText(
+                    #     base_image, 'm', pos,
+                    #     cv2.FONT_HERSHEY_SIMPLEX,
+                    #     0.5, (0, 0, 0), 1, cv2.LINE_AA
+                    # )
                 # cv2.putText(
                 #     base_image, str(idx), pos,
                 #     cv2.FONT_HERSHEY_SIMPLEX,
@@ -137,12 +137,12 @@ class ValueRender:
         self.width = width
         self.height = height
         self.padding = padding
-        self.video = cv2.VideoWriter(
-            'figs/value_{}.avi'.format(algo),
-            cv2.VideoWriter_fourcc(*'MJPG'),
-            30,
-            (width * 2, height)
-        )
+        # self.video = cv2.VideoWriter(
+        #     'figs/value_{}.avi'.format(algo),
+        #     cv2.VideoWriter_fourcc(*'MJPG'),
+        #     30,
+        #     (width * 2, height)
+        # )
         self.env = env
         self.base_img = np.ones((height, width, 3), np.uint8) * 255
 
@@ -298,11 +298,11 @@ class ValueRender:
     def close(self):
         self.env = None
         self.base_img = None
-        if self.video is not None:
-            self.video.release()
-            cv2.waitKey(1) & 0xFF
-            cv2.destroyAllWindows()
-            self.video = None
+        # if self.video is not None:
+        #     self.video.release()
+        #     cv2.waitKey(1) & 0xFF
+        #     cv2.destroyAllWindows()
+        #     self.video = None
 
 
 def regularize(value):

@@ -6,9 +6,6 @@ from env import SnakeDiscreteEnv
 from common.utils import extract_all_paths
 
 
-draw_path = True
-
-
 def train_and_test(env, algo, max_len=100, **kwargs):
     print('\n------------------------------------------')
     # Train
@@ -36,14 +33,13 @@ def train_and_test(env, algo, max_len=100, **kwargs):
 
     # Find all optimal paths
     node_dict, edges = {}, []
-    if draw_path and done:
-        state = env.reset(reuse=True)
-        transition(node_dict, state, agent.pi, env, 0, max_len)
-        prob = plot_tree(
-            node_dict, agent.p, env,
-            filename='graph_{}'.format(prefix)
-        )
-        print('Optimal Path: {}'.format(prob))
+    state = env.reset(reuse=True)
+    transition(node_dict, state, agent.pi, env, 0, max_len)
+    prob = plot_tree(
+        node_dict, agent.p, env,
+        filename='graph_{}'.format(prefix)
+    )
+    print('Optimal Path: {}'.format(prob))
     print('------------------------------------------')
     return agent, node_dict, edges, return_val, done
 
@@ -121,7 +117,7 @@ def run(episode, **kwargs_env):
     # agent, node_dict, edges, *_ = train_and_test(env, algo=PolicyIteration, **kwargs_algo)
     h = kwargs_algo['max_len'] + 50
     for i in range(h+1, h+2):
-        for j in range(-10, 1):
+        for j in range(-1, 0):
             for k in range(h+1, h+2):
                 print('\n(x,y,z): ({},{},{})'.format(i, j, k))
                 kwargs_algo['prefix'] = (k, j, i, 1)

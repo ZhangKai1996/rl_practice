@@ -151,13 +151,13 @@ class SnakeDiscreteEnv(gym.Env):
         if pos in self.barriers:
             reward, done, terminated = -1.0 * self.ranges[0], False, True
         elif pos in self.mud:
-            reward, done, terminated = -1.0, False, False
-        elif pos in self.coin_checker.keys():
-            done = all([status == 1 for status in self.coin_checker.values()])
-            terminated = False
-            reward = +1.0*self.ranges[2] if done else -1.0 * self.ranges[1]
-        else:
             reward, done, terminated = -1.0 * self.ranges[1], False, False
+        elif pos in self.coin_checker.keys():
+            terminated = False
+            done = all([status == 1 for status in self.coin_checker.values()])
+            reward = +1.0*self.ranges[2] if done else -1.0
+        else:
+            reward, done, terminated = -1.0, False, False
         return reward, done, terminated
 
     def render(self, **kwargs):
