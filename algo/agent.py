@@ -19,36 +19,27 @@ class PlanningAgent:
         num_obs, num_act = self.num_obs, self.num_act
 
         self.p = np.zeros([num_act, num_obs, num_obs], dtype=np.float32)  # P(s'|s,a)
-        self.r = np.zeros([num_obs, ], dtype=np.float32)                  # R(s')
-        for i, (s, info) in enumerate(env.state_dict.items()):
-            pos = info['pos']
-            coin_checker = {c: int(info['status'][j]) for j, c in enumerate(env.coins)}
-            env.coin_checker = coin_checker.copy()
-            self.r[i] = env.get_reward(pos=pos)[0]
-            if pos in env.barriers: continue
-            if pos in coin_checker.keys():
-                if all([status == 1 for status in coin_checker.values()]):
-                    continue
+        self.r = np.zeros([num_act, num_obs, num_obs], dtype=np.float32)  # R(s')
+        self.r_ = np.zeros([num_obs, num_act], dtype=np.float32)
+        for s in range(num_obs):
+            if s in env.barriers: continue
             for a in range(num_act):
-                env.pos = pos
-                env.coin_checker = coin_checker.copy()
-                s_prime, _, *_ = env.step(a)
-                p_prime = env.state_dict[s_prime]['pos']
-                k = env.state_list.index(s_prime)
-                if p_prime not in env.ladders.keys():
-                    self.p[a, i, k] = 1.0
+                env.pos = s
+                s_prime, reward, *_ = env.step(a)
+                self.r[a, s, s_prime] = reward
+                self.r_[s, a] = reward
+                if s_prime not in env.ladders.keys():
+                    self.p[a, s, s_prime] = 1.0
                     continue
-                for p_prime, prob in zip(*env.ladders[s_prime]):
-                    self.p[a, i, k] = prob
+                for s_prime, prob in zip(*env.ladders[s_prime]):
+                    self.p[a, s, s_prime] = prob
         random_actions = np.random.randint(0, num_act, size=(num_obs,))
         self.pi = np.eye(num_act)[random_actions]    # pi(s)
         self.v = np.zeros((num_obs,))                # V(s)
         self.q = np.zeros((num_obs, num_act))        # Q(s,a)
 
     def action_sample(self, state):
-        # return np.argmax(self.agent.pi[state])
-        idx = self.env.state_list.index(state)
-        act_prob = self.pi[idx]
+        act_prob = self.pi[state]
         acts = np.argwhere(act_prob == act_prob.max())
         acts = acts.squeeze(axis=1)
         np.random.shuffle(acts)
@@ -58,32 +49,44 @@ class PlanningAgent:
         if self.render is None:
             self.render = ValueRender(env=self.env)
         self.render.draw(
-            # values={'v': self.v, 'q': self.q},
-            values={'v': self.v, 'r': self.r},
+            values={'v': self.v,
+                    'r': self.r_,
+                    'q': self.q,
+                    'pi': self.pi},
             algo=algo
         )
 
 
 class LearningAgent:
-    def __init__(self, env):
-        self.num_obs = num_obs = env.observation_space.n
-        self.num_act = num_act = env.action_space.n
-
-        self.r = np.array([env.get_reward(s)[0] for s in range(num_obs)])  # R1(s')
-        random_actions = np.random.randint(0, num_act, size=(num_obs,))
-        self.pi = np.eye(num_act)[random_actions]  # $\pi$(s)
-        self.q = np.zeros((num_obs, num_act))
-        self.n = np.zeros((num_obs, num_act))
-
+    def __init__(self, env, **kwargs):
         self.env = env
+        self.num_obs = env.observation_space.n
+        self.num_act = env.action_space.n
+        self.__build_model()
         self.render = None
 
-    def play(self, s, epsilon=0.0):
+    def __build_model(self):
+        env = self.env
+        num_obs, num_act = self.num_obs, self.num_act
+
+        self.p = None
+        self.r = np.zeros([num_act, num_obs, num_obs], dtype=np.float32)                  # R(s')
+        for s in range(num_obs):
+            if s in env.barriers: continue
+            for a in range(num_act):
+                env.pos = s
+                s_prime, reward, *_ = env.step(a)
+                self.r[a, s, s_prime] = reward
+        random_actions = np.random.randint(0, num_act, size=(num_obs,))
+        self.pi = np.eye(num_act)[random_actions]    # pi(s)
+        self.q = np.zeros((num_obs, num_act))        # Q(s,a)
+        self.n = np.zeros((num_obs, num_act))
+
+    def action_sample(self, state, epsilon=0.0):
         if np.random.rand() < epsilon:
             return np.random.randint(self.num_act)
-        # return np.argmax(self.pi[s])
-
-        act_prob = self.pi[s]
+        idx = self.env.state_list.index(state)
+        act_prob = self.pi[idx]
         acts = np.argwhere(act_prob == act_prob.max())
         acts = acts.squeeze(axis=1)
         np.random.shuffle(acts)
@@ -92,9 +95,7 @@ class LearningAgent:
     def visual(self, algo):
         if self.render is None:
             self.render = ValueRender(env=self.env, algo=algo)
-
-        # 根据策略和状态动作值函数计算值函数
-        v = np.zeros((self.num_obs,))
+        v = np.zeros((self.num_obs,))  # 根据策略和状态动作值函数计算值函数
         for s in range(self.num_obs):
             p_act = self.pi[s]
             value = 0.0
@@ -102,12 +103,7 @@ class LearningAgent:
                 prob = p_act[a]
                 value += prob * self.q[s, a]
             v[s] = value
-
-        # 画出V值表和Q值表
-        self.render.draw(
-            # values={'v': v, 'q': self.q},
-            values={'v': v, 'r': self.r},
-        )
+        self.render.draw(values={'v': v, 'r': self.r}, algo=algo)  # 画出V值表和Q值表
 
 
 class NetworkAgent:

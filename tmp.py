@@ -1,7 +1,9 @@
 import numpy as np
 from graphviz import Digraph
+import matplotlib.pyplot as plt
 
 from algo.basic import *
+from algo.value_based import *
 from env import SnakeDiscreteEnv
 from common.utils import extract_all_paths
 
@@ -13,93 +15,93 @@ def train_and_test(env, algo, max_len=100, **kwargs):
     env.ranges = kwargs['prefix']
     algo_instance = algo(env, **kwargs)
     prefix = '_'.join([str(x) for x in kwargs['prefix']])
-    agent = algo_instance.update(prefix=prefix)
+    print('Reward: ', prefix)
+    agent = algo_instance.update()
 
     # Test
     state = env.reset(reuse=True)
     return_val, step = 0.0, 0
+    path, refresh = [state], True
     while True:
         action = agent.action_sample(state)
         next_state, reward, done, terminated = env.step(action, verbose=False)
+        path.append(next_state)
         return_val += reward
         step += 1
         state = next_state
-        env.render(mode=algo_instance.name + ': {}/{}'.format(step, max_len))
+        env.render(mode='Algo: {}, '.format(algo_instance.name) +
+                        'Step: {}/{}, '.format(step, max_len) +
+                        'Parameters: {}'.format(prefix),
+                   refresh=refresh)
+        refresh = False
         if done or terminated or step >= max_len:
             break
+    is_optimal = (done and
+                  len(path[1:-1]) == len(env.land) and
+                  all([x == y for x, y in zip(env.land, path[1:-1])]))
+    # is_optimal = all([point in path for point in env.land])
+    print('Path: ', path)
+    print('Planned points: ', env.land)
     print('Total reward:', return_val)
     print('Total step:{}/{}'.format(step, max_len))
-    print('Final: done({}), terminated({})'.format(done, terminated))
-
+    print('Final: done({}), optimal({}), terminated({})'.format(
+        done, is_optimal, terminated))
+    algo_instance.render(prefix=prefix)
     # Find all optimal paths
     node_dict, edges = {}, []
-    state = env.reset(reuse=True)
-    transition(node_dict, state, agent.pi, env, 0, max_len)
-    prob = plot_tree(
-        node_dict, agent.p, env,
-        filename='graph_{}'.format(prefix)
-    )
-    print('Optimal Path: {}'.format(prob))
+    if kwargs['plot_tree']:
+        state = env.reset(reuse=True)
+        random_path(node_dict, state, env, 0, max_len)
+        paths = plot_tree(node_dict, filename='graph_{}'.format(prefix))
+        print('Feasible Path: {}'.format(len(paths)))
+        for i, path in enumerate(paths):
+            print('\t', i+1, path)
+        idx = np.random.randint(0, len(paths))
+        env.land = paths[idx][1:-1]
     print('------------------------------------------')
-    return agent, node_dict, edges, return_val, done
+    return agent, node_dict, edges, [return_val, step, done, is_optimal]
 
 
-def transition(node_dict, state, policy, env, step, max_len):
+def random_path(node_dict, state, env, step, max_len):
     if state in node_dict.keys():
         return
-
-    idx = env.state_list.index(state)
-    act_prob = policy[idx]
-    acts = np.argwhere(act_prob == act_prob.max())
-
-    pos = env.state_dict[state]['pos']
-    coin_checker = env.coin_checker.copy()
-
-    node_dict[state] = {}
-    for act in acts.squeeze(axis=1):
-        env.pos = pos
-        env.coin_checker = coin_checker.copy()
-        new_state, _, done, terminated = env.step(act)
-        # if new_state == state:
-        #     continue
-        node_dict[state][new_state] = {
-            'a': act, 's_prime': new_state, 'prob': act_prob[act]
-        }
-        if done or terminated:
-            return
-        transition(node_dict, new_state, policy, env, step + 1, max_len)
     if step >= max_len:
         return
 
+    key = '{}_{}'.format(state, step)
+    node_dict[key] = {}
+    iterator = list(range(env.action_space.n))
+    np.random.shuffle(iterator)
+    for act in iterator:
+        env.pos = state
+        new_state, _, done, terminated = env.step(act)
+        if new_state == state or terminated:
+            continue
+        prob = 0.0 if step + 1 >= max_len else 0.25
+        node_dict[key][act] = {'s_prime': '{}_{}'.format(new_state, step+1),
+                               'prob': prob}
+        if done:
+            continue
+        random_path(node_dict, new_state, env, step + 1, max_len)
 
-def plot_tree(node_dict, p, env, filename):
-    state_list, state_dict = env.state_list, env.state_dict
 
+def plot_tree(node_dict, filename):
     g = Digraph('G', filename='figs/' + filename + '.gv')
     edges = []
-    for start, node_info in node_dict.items():
-        info_s = state_dict[start]
-        name_s = '{}({})'.format(info_s['pos'], info_s['status'])
+    for name_s, node_info in node_dict.items():
         g.node(name_s, label=name_s)
-        for end, v in node_info.items():
-            info_e = state_dict[end]
-            name_e = '{}({})'.format(info_e['pos'], info_e['status'])
-            g.edge(name_s, name_e, label='{}({:>4.2f})'.format(v['a'], v['prob']))
-            edges.append((start, end))
+        for act, v in node_info.items():
+            if v['prob'] == 0.0:
+                continue
+            name_e = v['s_prime']
+            g.edge(name_s, name_e, label='{}({:>4.2f})'.format(act, v['prob']))
+            edges.append((name_s, name_e))
     g.render(cleanup=True, format='png')  # 渲染
-
-    all_paths = extract_all_paths(edges)  # 提取所有最优路径
-    probs = []
-    for path in all_paths:
-        prob = 1.0
-        for i, s1 in enumerate(path[:-1]):
-            s2 = path[i + 1]
-            info = node_dict[s1][s2]
-            idx1 = state_list.index(s1)
-            idx2 = state_list.index(s2)
-            prob *= info['prob'] * p[info['a'], idx1, idx2]
-        probs.append(prob)
-    return sum(list(sorted(probs)))
+    all_paths = []
+    for path in extract_all_paths(edges):
+        all_paths.append([int(x[0]) for x in path])
+    return [path for path in all_paths
+            if len(set(path)) == len(path)]
 
 
 def run(episode, **kwargs_env):
@@ -108,33 +110,56 @@ def run(episode, **kwargs_env):
     # Parameters
     kwargs_algo = {
         'gamma': 0.95,
-        'max_len': int(1e2),
+        'max_len': 10,
         'eval_iter': 128,
         'improve_iter': 1000,
-        'prefix': None
+        'prefix': (-10, -2, 0, 10, 10),
+        'plot_tree': True
     }
+    train_and_test(env, algo=PolicyIteration, **kwargs_algo)
+    kwargs_algo['plot_tree'] = False
     # Algo: PI
     # agent, node_dict, edges, *_ = train_and_test(env, algo=PolicyIteration, **kwargs_algo)
-    h = kwargs_algo['max_len'] + 50
-    for i in range(h+1, h+2):
-        for j in range(-1, 0):
-            for k in range(h+1, h+2):
-                print('\n(x,y,z): ({},{},{})'.format(i, j, k))
-                kwargs_algo['prefix'] = (k, j, i, 1)
-                result = train_and_test(env, algo=PolicyIteration, **kwargs_algo)
-                if result[-1]:
-                    break
+    h = kwargs_algo['max_len']
+    metric = []
+    for r_b in np.linspace(-h, -h, 1):
+        for r_m in np.linspace(-2, -2, 1):
+            for r_e in range(-1, 2):
+                for r_l in np.linspace(0, h, int(h / 2) + 1):
+                    for r_t in range(h, h + 1):
+                        kwargs_algo['prefix'] = (r_b, r_m, r_e, r_l, r_t)
+                        result = train_and_test(env, algo=PolicyIteration, **kwargs_algo)
+                        # result = train_and_test(env, algo=MonteCarlo, **kwargs_algo)
+                        metric.append([r_l, r_e, ] + [float(x) for x in result[-1]])
+
+    metric = np.array(metric)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 2, 1, projection='3d')
+    ax.scatter(metric[:, 0], metric[:, 1], metric[:, 4], marker='o', label='Done')
+    ax.scatter(metric[:, 0], metric[:, 1], metric[:, 5], marker='*', label='Optimal')
+    ax.set_xlabel('land')
+    ax.set_ylabel('empty')
+    ax.set_zlabel('0/1')
+    ax.legend()
+    ax = fig.add_subplot(1, 2, 2, projection='3d')
+    ax.scatter(metric[:, 0], metric[:, 1], metric[:, 3], marker='o')
+    ax.set_xlabel('land')
+    ax.set_ylabel('empty')
+    ax.set_zlabel('step')
+    plt.show()
+
     env.close()
 
 
 def main():
     num_iter = 1
     parameters = {
-        'size': 4,
+        'size': 3,
         'num_ladder': 0,
         'num_coin': 1,
-        'num_mud': 2,
-        'num_barrier': 2
+        'num_land': 0,
+        'num_mud': 0,
+        'num_barrier': 1
     }
 
     for episode in range(num_iter):

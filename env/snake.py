@@ -23,16 +23,14 @@ class SnakeDiscreteEnv(gym.Env):
         self.start = 1
         self.pos = 1
         self.last_pos = 1
-        self.coin_checker = {}
 
         self.cv_render = None
         self.ranges = None
         self.reset(verbose=True)
 
-        self.__build_table()
-        self.observation_space = Discrete(len(self.state_dict))
+        self.observation_space = Discrete(self.num_pos)
         self.action_space = Discrete(4)
-        print('>>> Observation Space: {}'.format(len(self.state_dict)))
+        print('>>> Observation Space: {}'.format(self.num_pos))
         print('>>> Action Space: {}'.format(4))
 
     def __initialize(self):
@@ -40,10 +38,21 @@ class SnakeDiscreteEnv(gym.Env):
         poses = list(range(self.num_pos))
         np.random.shuffle(poses)
 
+        # self.barriers = [2, 7, 17, 22]
+        # self.land = [1, 6, 5, 10, 15, 20, 21, 16,
+        #              12,
+        #              8, 3, 4, 9, 14, 19, 18, 23]
+        # self.mud = [11, 13, ]
+        # self.coins = [24, ]
+        # self.empty = [0, ]
+        # self.ladders = {}
+
         self.barriers = poses[:kwargs['num_barrier']]  # Generate barriers
         poses = poses[kwargs['num_barrier']:]
         self.mud = poses[:kwargs['num_mud']]           # Generate mud area
         poses = poses[kwargs['num_mud']:]
+        self.land = poses[:kwargs['num_land']]         # Generate land area
+        poses = poses[kwargs['num_land']:]
         ladders = {}                                   # Generate ladders
         for i in range(kwargs['num_ladder']):
             np.random.shuffle(poses)
@@ -65,48 +74,19 @@ class SnakeDiscreteEnv(gym.Env):
         self.coins = poses[:kwargs['num_coin']]  # Generate coins
         self.empty = poses[kwargs['num_coin']:]
 
-    def __build_table(self):
-        num_pos, num_coin = self.num_pos, self.kwargs['num_coin']
-        num_layer = int(''.join(['1' for _ in range(num_coin)]), 2) + 1  # 8
-        state_dict, state_list = {}, []
-        for pos in range(num_pos):
-            idx = self.coins.index(pos) if pos in self.coins else None
-            for i in range(num_layer):
-                state = pos + i * num_pos
-                status = n_binary(i, num_coin)
-                if i >= num_layer - 1 and idx is None:
-                    continue
-                if idx is not None and status[idx] != '1':
-                    continue
-                state_dict[state] = {'pos': pos, 'status': status}
-                state_list.append(state)
-        self.state_dict = state_dict
-        self.state_list = state_list
-
-    def get_state(self, pos=None, coin_checker=None):
-        if pos is None:
-            pos = self.pos
-        if coin_checker is None:
-            coin_checker = self.coin_checker
-
-        status = ''.join([str(status) for status in coin_checker.values()])
-        num_layer = int(status, 2)
-        return pos + num_layer * self.num_pos
-
     def reset(self, reuse=False, verbose=False):
         if not reuse:
             self.__initialize()
-            np.random.shuffle(self.empty)
+            # np.random.shuffle(self.empty)
             self.pos = self.start = self.empty[0]
-            self.ranges = (-1.0, 0.0, +1.0)  # s_b, s_m, s_g
+            self.ranges = (-10.0, -1.0, 0.0, +1.0, +10.0)
         else:
             self.last_pos = self.pos = self.start
-        self.coin_checker = {pos: 0 for pos in self.coins}
         if verbose:
-            print('>>> Coins: ', ', '.join(['{}({})'.format(k, v) for k, v in self.coin_checker.items()]))
+            print('>>> Coins: ', self.coins)
             print('>>> Barriers: ', self.kwargs['num_barrier'])
             print('>>> Start: ', self.pos, '(king\'s move)')
-        return self.get_state()
+        return self.pos
 
     def step(self, action, verbose=False):
         """ Up-Down-None-Left-Right move (0-4) """
@@ -132,33 +112,40 @@ class SnakeDiscreteEnv(gym.Env):
                 if random_prob <= 0.0:
                     new_pos = pos
                     break
-        if new_pos in self.coin_checker.keys():
-            if self.coin_checker[new_pos] == 0:
-                self.coin_checker[new_pos] = 1
-        reward, done, terminated = self.get_reward(pos=new_pos)
+        reward, done, terminated = self.get_reward(pos, new_pos)
         if verbose:
             print('\t--> {:>3d} {} {:>3d} {:>+6.2f} {} {}'.format(
                 pos, action, new_pos, reward, int(done), int(terminated))
             )
         self.last_pos = pos
         self.pos = new_pos
-        return self.get_state(), reward, done, terminated
+        return self.pos, reward, done, terminated
 
-    def get_reward(self, state=None, pos=None):
-        if pos is None:
-            pos = self.state_dict[state]['pos']
+    def get_reward(self, pos, new_pos):
+        if new_pos in self.barriers:
+            return self.ranges[0], False, True
+        if new_pos in self.mud:
+            return self.ranges[1], False, False
 
-        if pos in self.barriers:
-            reward, done, terminated = -1.0 * self.ranges[0], False, True
-        elif pos in self.mud:
-            reward, done, terminated = -1.0 * self.ranges[1], False, False
-        elif pos in self.coin_checker.keys():
-            terminated = False
-            done = all([status == 1 for status in self.coin_checker.values()])
-            reward = +1.0*self.ranges[2] if done else -1.0
-        else:
-            reward, done, terminated = -1.0, False, False
-        return reward, done, terminated
+        if new_pos in self.coins:
+            if pos in self.coins:
+                return self.ranges[2], True, False
+            if pos in self.land and pos != self.land[-1]:
+                return self.ranges[3] * 0.9, True, False
+            return self.ranges[4], True, False
+
+        if new_pos in self.land:
+            if pos in self.coins:
+                return self.ranges[2], True, False
+            if pos in self.land:
+                diff = self.land.index(new_pos) - self.land.index(pos)
+                if diff <= 0:
+                    return self.ranges[2], False, False
+                if diff == 1:
+                    return self.ranges[3], False, False
+                return self.ranges[3] * 0.9, False, False
+            return self.ranges[3], False, False
+        return self.ranges[2], False, False
 
     def render(self, **kwargs):
         if self.cv_render is None:

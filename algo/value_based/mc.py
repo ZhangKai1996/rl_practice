@@ -1,3 +1,4 @@
+import time
 from tqdm import tqdm
 import numpy as np
 
@@ -13,25 +14,28 @@ class MonteCarlo:
         self.alpha = alpha
         self.epsilon = epsilon
         self.max_len = max_len
-        self.agent = LearningAgent(env)
+        self.agent = LearningAgent(env, **kwargs)
         self.e_iter = int(1e6) if eval_iter <= 0 else eval_iter
         self.i_iter = int(1e6) if improve_iter <= 0 else improve_iter
+        print('Algorithm: ', self.name)
 
-    def update(self):
-        for i in tqdm(range(self.i_iter), desc='MC update:'):
-            for _ in range(self.e_iter):
-                self.__evaluation()
+    def update(self, prefix=''):
+        count, start = 0, time.time()
+        for iteration in tqdm(range(self.i_iter), desc='MC update:'):
+            for _ in range(self.e_iter): self.__evaluation()
+            count += self.e_iter
             if not self.__improvement():
-                print('Iteration: ', i+1)
+                print('Iteration: {}({})'.format(iteration, count))
+                print('Time consumption: ', time.time() - start)
                 break
-        self.agent.visual(algo=self.name)
+        self.agent.visual(algo=self.name+'_'+prefix)
         return self.agent
 
     def __evaluation(self):
         state = self.env.reset(reuse=True)
         experiences = []
         while True:
-            action = self.agent.play(state, self.epsilon)
+            action = self.agent.action_sample(state, self.epsilon)
             next_state, reward, done, _ = self.env.step(action)
             experiences.append((state, action, reward))
             state = next_state
@@ -57,7 +61,6 @@ class MonteCarlo:
             ids = ids.squeeze(axis=1)
             for idx in ids:
                 new_policy[s, idx] = 1.0 / len(ids)
-
         if np.all(np.equal(new_policy, self.agent.pi)):
             return False
         self.agent.pi = new_policy

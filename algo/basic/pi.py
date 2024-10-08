@@ -37,7 +37,7 @@ class PolicyIteration:
         v = np.linalg.solve(a, b)
         return v
 
-    def update(self, prefix=''):
+    def update(self):
         count, start = 0, time.time()
         for iteration in tqdm(range(self.i_iter), desc='Iteration'):
             count += self.__evaluation(max_iter=self.e_iter)
@@ -46,8 +46,10 @@ class PolicyIteration:
                 print('Time consumption: ', time.time() - start)
                 break
         # save_animation(values=self.v_lst, r=self.agent.r, algo=self.name)
-        self.agent.visual(algo=self.name+'_'+prefix)
         return self.agent
+
+    def render(self, prefix=''):
+        self.agent.visual(algo=self.name+'_'+prefix)
 
     def __evaluation(self, max_iter):
         agent = self.agent
@@ -57,8 +59,10 @@ class PolicyIteration:
             new_v = old_v.copy()
             r = agent.r
             for s in range(agent.num_obs):
-                q = np.dot(agent.p[:, s, :], r + self.gamma * old_v)
-                new_v[s] = np.dot(agent.pi[s], q)
+                q = []
+                for a in range(agent.num_act):
+                    q.append(np.dot(agent.p[a, s, :], r[a, s, :] + self.gamma * old_v))
+                new_v[s] = np.dot(agent.pi[s], np.array(q))
             agent.v = new_v.copy()
             self.v_lst.append(new_v.copy())
 
@@ -74,7 +78,10 @@ class PolicyIteration:
         v = agent.v
         r = agent.r
         for s in range(agent.num_obs):
-            q = np.dot(agent.p[:, s, :], r + self.gamma * v)
+            q = []
+            for a in range(agent.num_act):
+                q.append(np.dot(agent.p[a, s, :], r[a, s, :] + self.gamma * v))
+            q = np.array(q)
             agent.q[s, :] = q[:]
             ids = np.argwhere(q == q.max()).squeeze(axis=1)
             for idx in ids:
