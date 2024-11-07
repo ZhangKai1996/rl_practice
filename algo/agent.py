@@ -48,10 +48,15 @@ class PlanningAgent:
     def visual(self, algo):
         if self.render is None:
             self.render = ValueRender(env=self.env)
+        r_state = np.zeros((self.num_obs,))                # V(s)
+        for s_prime in range(self.num_obs):
+            for s in range(self.num_obs):
+                for a in range(self.num_act):
+                    r_state[s_prime] += self.pi[s, a] * self.p[a, s, s_prime] * self.r[a, s, s_prime]
         self.render.draw(
             values={'v': self.v,
-                    'r': self.r_,
-                    'q': self.q,
+                    'r': r_state,
+                    'q': self.r_,
                     'pi': self.pi},
             algo=algo
         )

@@ -153,7 +153,7 @@ class ValueRender:
             base_img = self.__draw_v(values['v'], w_p, h_p, size, border_len)
             images.append(base_img)
         if 'r' in values.keys():
-            base_img = self.__draw_q(values['r'], w_p, h_p, size, border_len)
+            base_img = self.__draw_v(values['r'], w_p, h_p, size, border_len)
             images.append(base_img)
         if 'q' in values.keys():
             base_img = self.__draw_q(values['q'], w_p, h_p, size, border_len)

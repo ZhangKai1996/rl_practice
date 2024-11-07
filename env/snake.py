@@ -6,13 +6,6 @@ from common.rendering import EnvRender
 from env.utils import *
 
 
-def n_binary(x, n):
-    binary_x = bin(x)[2:]
-    while len(binary_x) < n:
-        binary_x = '0' + binary_x
-    return binary_x
-
-
 class SnakeDiscreteEnv(gym.Env):
     def __init__(self, size=10, **kwargs):
         print('Snake environment')
@@ -39,10 +32,8 @@ class SnakeDiscreteEnv(gym.Env):
         np.random.shuffle(poses)
 
         # self.barriers = [2, 7, 17, 22]
-        # self.land = [1, 6, 5, 10, 15, 20, 21, 16,
-        #              12,
-        #              8, 3, 4, 9, 14, 19, 18, 23]
-        # self.mud = [11, 13, ]
+        # self.land = [11, 12, 13]
+        # self.mud = []
         # self.coins = [24, ]
         # self.empty = [0, ]
         # self.ladders = {}
@@ -100,8 +91,8 @@ class SnakeDiscreteEnv(gym.Env):
         new_x, new_y = x + delta_x, y + delta_y
         if verbose:
             print('\t>>> ({:>3d},{:>3d}) ({:>3d},{:>3d}) ({:>3d},{:>3d})'.format(
-                x, y, delta_x, delta_y, new_x, new_y
-            ), end=' ')
+                x, y, delta_x, delta_y, new_x, new_y),
+                end=' ')
         new_pos = coord2state((new_x, new_y), size)
         if not (0 <= new_x < size and 0 <= new_y < size):
             new_pos = pos
@@ -115,8 +106,8 @@ class SnakeDiscreteEnv(gym.Env):
         reward, done, terminated = self.get_reward(pos, new_pos)
         if verbose:
             print('\t--> {:>3d} {} {:>3d} {:>+6.2f} {} {}'.format(
-                pos, action, new_pos, reward, int(done), int(terminated))
-            )
+                pos, action, new_pos, reward,
+                int(done), int(terminated)))
         self.last_pos = pos
         self.pos = new_pos
         return self.pos, reward, done, terminated

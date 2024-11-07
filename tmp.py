@@ -29,11 +29,12 @@ def train_and_test(env, algo, max_len=100, **kwargs):
         return_val += reward
         step += 1
         state = next_state
-        env.render(mode='Algo: {}, '.format(algo_instance.name) +
-                        'Step: {}/{}, '.format(step, max_len) +
-                        'Parameters: {}'.format(prefix),
-                   refresh=refresh)
-        refresh = False
+        if kwargs['plot_tree']:
+            env.render(mode='Algo: {}, '.format(algo_instance.name) +
+                            'Step: {}/{}, '.format(step, max_len) +
+                            'Parameters: {}'.format(prefix),
+                       refresh=refresh)
+            refresh = False
         if done or terminated or step >= max_len:
             break
     is_optimal = (done and
@@ -51,13 +52,22 @@ def train_and_test(env, algo, max_len=100, **kwargs):
     node_dict, edges = {}, []
     if kwargs['plot_tree']:
         state = env.reset(reuse=True)
+        print('Collecting all paths ...')
         random_path(node_dict, state, env, 0, max_len)
-        paths = plot_tree(node_dict, filename='graph_{}'.format(prefix))
+        print('Plotting tree ...')
+        seqs, paths = plot_tree(env, node_dict, filename='graph_{}'.format(prefix))
         print('Feasible Path: {}'.format(len(paths)))
-        for i, path in enumerate(paths):
-            print('\t', i+1, path)
-        idx = np.random.randint(0, len(paths))
-        env.land = paths[idx][1:-1]
+        for i, seq in enumerate(paths):
+            prob = 1.0
+            for s, a, s_prime in seq:
+                prob *= agent.pi[s, a] * agent.p[a, s, s_prime]
+            print('\tPath {:>3d}: {:>5.3f}'.format(i+1, prob), seqs[i])
+        if len(seqs) > 0:
+            idx = np.random.randint(0, len(seqs))
+            env.land = seqs[idx][1:-1]
+        else:
+            env.land = path[1:-1]
+    env.land = path[1:-1]
     print('------------------------------------------')
     return agent, node_dict, edges, [return_val, step, done, is_optimal]
 
@@ -75,46 +85,54 @@ def random_path(node_dict, state, env, step, max_len):
     for act in iterator:
         env.pos = state
         new_state, _, done, terminated = env.step(act)
-        if new_state == state or terminated:
-            continue
-        prob = 0.0 if step + 1 >= max_len else 0.25
-        node_dict[key][act] = {'s_prime': '{}_{}'.format(new_state, step+1),
-                               'prob': prob}
-        if done:
+        node_dict[key][act] = {
+            's_prime': '{}_{}'.format(new_state, step+1),
+            'prob': 0.0 if terminated or step + 1 >= max_len else 0.25
+        }
+        if done or terminated:
             continue
         random_path(node_dict, new_state, env, step + 1, max_len)
 
 
-def plot_tree(node_dict, filename):
+def plot_tree(env, node_dict, filename):
     g = Digraph('G', filename='figs/' + filename + '.gv')
     edges = []
+    dict1 = {}
     for name_s, node_info in node_dict.items():
         g.node(name_s, label=name_s)
         for act, v in node_info.items():
+            name_e = v['s_prime']
+            if name_s in dict1.keys():
+                dict1[name_s][name_e] = act
+            else:
+                dict1[name_s] = {name_e: act}
             if v['prob'] == 0.0:
                 continue
-            name_e = v['s_prime']
             g.edge(name_s, name_e, label='{}({:>4.2f})'.format(act, v['prob']))
             edges.append((name_s, name_e))
     g.render(cleanup=True, format='png')  # 渲染
-    all_paths = []
+    paths, seqs = [], []
     for path in extract_all_paths(edges):
-        all_paths.append([int(x[0]) for x in path])
-    return [path for path in all_paths
-            if len(set(path)) == len(path)]
+        seq = [int(x[0]) for x in path]
+        path_ = [(int(x[0]), dict1[x][path[i+1]], int(path[i+1][0]))
+                 for i, x in enumerate(path[:-1])]
+        if seq[-1] in env.coins and len(seq) == len(set(seq)):
+            seqs.append(seq)
+            paths.append(path_)
+    return seqs, paths
 
 
-def run(episode, **kwargs_env):
+def run(**kwargs_env):
     # Environment
     env = SnakeDiscreteEnv(**kwargs_env)
     # Parameters
     kwargs_algo = {
         'gamma': 0.95,
-        'max_len': 10,
+        'max_len': 20,
         'eval_iter': 128,
         'improve_iter': 1000,
         'prefix': (-10, -2, 0, 10, 10),
-        'plot_tree': True
+        'plot_tree': False
     }
     train_and_test(env, algo=PolicyIteration, **kwargs_algo)
     kwargs_algo['plot_tree'] = False
@@ -151,21 +169,14 @@ def run(episode, **kwargs_env):
     env.close()
 
 
-def main():
-    num_iter = 1
-    parameters = {
-        'size': 3,
-        'num_ladder': 0,
-        'num_coin': 1,
-        'num_land': 0,
-        'num_mud': 0,
-        'num_barrier': 1
-    }
-
-    for episode in range(num_iter):
-        print('{}/{}'.format(episode + 1, num_iter))
-        run(episode + 1, **parameters)
-
-
 if __name__ == '__main__':
-    main()
+    num_episode = 1
+    parameters = {'size': 20,
+                  'num_ladder': 0,
+                  'num_coin': 3,
+                  'num_land': 0,
+                  'num_mud': 20,
+                  'num_barrier': 20}
+    for episode in range(num_episode):
+        print('{}/{}'.format(episode + 1, num_episode))
+        run(**parameters)
