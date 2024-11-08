@@ -28,11 +28,7 @@ class PlanningAgent:
                 s_prime, reward, *_ = env.step(a)
                 self.r[a, s, s_prime] = reward
                 self.r_[s, a] = reward
-                if s_prime not in env.ladders.keys():
-                    self.p[a, s, s_prime] = 1.0
-                    continue
-                for s_prime, prob in zip(*env.ladders[s_prime]):
-                    self.p[a, s, s_prime] = prob
+                self.p[a, s, s_prime] = 1.0
         random_actions = np.random.randint(0, num_act, size=(num_obs,))
         self.pi = np.eye(num_act)[random_actions]    # pi(s)
         self.v = np.zeros((num_obs,))                # V(s)

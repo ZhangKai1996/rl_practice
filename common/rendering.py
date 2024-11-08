@@ -5,120 +5,120 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from numpy.ma.core import inner
 
 
-inner_radius = 8
-radius = 15
-subtitle_size = 0.75
+inner_radius = 5
+radius = 10
+subtitle_size = 0.6
 subtitle_color = (0, 0, 0)
 font_thickness = 1
-outer_font_size = 1.0
+outer_font_size = 0.6
 outer_font_color = (0, 0, 0)
-inner_font_size = 0.75
+inner_font_size = 0.4
 inner_font_color = (150, 150, 150)
 
 
 class EnvRender:
     def __init__(self, env, width=1200, height=1200, padding=0.05):
-        self.video = cv2.VideoWriter(
-            'figs/snake_{}.avi'.format(int(time.time())),
-            cv2.VideoWriter_fourcc(*'MJPG'),
-            8, (width, height)
-        )
+        self.env = env
         self.width = width
         self.height = height
         self.padding = padding
-        self.env = env
-        self.base_img = None
-        self.__initialize(env, height, width, padding)
 
-    def __initialize(self, env, height, width, padding):
-        base_image = np.ones((height, width, 3), np.uint8) * 255
-        w_p = int(width * padding)
-        h_p = int(height * padding)
-        size = env.size
-        border_len = int((width - w_p * 2) / size)
+        self.video = cv2.VideoWriter(
+            filename='figs/snake_{}.avi'.format(int(time.time())),
+            fourcc=cv2.VideoWriter_fourcc(*'MJPG'),
+            fps=8, frameSize=(width, height)
+        )
+
+        self.base_img = None
+        self.pos_dict = None
+        self.initialize()
+
+    def initialize(self):
+        base_image = np.ones((self.height, self.width, 3), np.uint8) * 255
+        w_p = int(self.width * self.padding)
+        h_p = int(self.height * self.padding)
+        border_len = int((self.width - w_p * 2) / self.env.size)
 
         self.pos_dict = {}
-        for i in range(size):
+        for i in range(self.env.size):
             column = int(border_len / 2 + i * border_len + w_p)
             # Draw row number
-            cv2.putText(base_image, str(i), (column, int(height - h_p / 2)),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        outer_font_size, outer_font_color, font_thickness,
-                        cv2.LINE_AA)
-            for j in range(size):
+            cv2.putText(
+                img=base_image,
+                text=str(i),
+                org=(column, int(self.height - h_p / 2)),
+                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                fontScale=outer_font_size,
+                color=outer_font_color,
+                thickness=font_thickness,
+                lineType=cv2.LINE_AA)
+
+            for j in range(self.env.size):
                 row = int(border_len / 2 + j * border_len + h_p)
-                pos = (column, row)
-                idx = i + j * size
-                self.pos_dict[idx] = pos
+                idx = i + j * self.env.size
+                self.pos_dict[idx] = (column, row)
+
                 # Draw grids
-                thickness = -1 if idx in env.barriers else 2
-                cv2.rectangle(base_image,
-                             (int(pos[0] - border_len / 2), int(pos[1] - border_len / 2)),
-                             (int(pos[0] + border_len / 2), int(pos[1] + border_len / 2)),
-                              (0, 0, 0), thickness=thickness)
-                # Draw targets
-                if idx in env.coins:
-                    cv2.circle(base_image, pos, radius, (0, 255, 0), thickness=2)
-                elif idx == env.start:
-                    cv2.circle(base_image, pos, radius, (255, 0, 0), thickness=2)
-                elif idx in env.mud:
-                    cv2.circle(base_image, pos, radius, (255, 0, 255), thickness=2)
-                elif idx in env.land:
-                    cv2.circle(base_image, pos, radius, (255, 255, 0), thickness=2)
-                cv2.putText(base_image, str(idx),
-                            (column+int(border_len/4), row+int(border_len/4)),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            outer_font_size, outer_font_color, font_thickness,
-                            cv2.LINE_AA)
+                cv2.rectangle(
+                    img=base_image,
+                    pt1=(int(column - border_len / 2), int(row - border_len / 2)),
+                    pt2=(int(column + border_len / 2), int(row + border_len / 2)),
+                    color=(0, 0, 0),
+                    thickness=-1 if idx in self.env.barriers else 2
+                )
+
+                # Draw elements
+                if idx in self.env.coins:
+                    cv2.circle(base_image, (column, row), radius, (0, 255, 0), thickness=2)
+                elif idx == self.env.start:
+                    cv2.circle(base_image, (column, row), radius, (255, 0, 0), thickness=2)
+                elif idx in self.env.mud:
+                    cv2.circle(base_image, (column, row), radius, (173, 222, 255), thickness=-1)
+                elif idx in self.env.land:
+                    cv2.circle(base_image, (column, row), radius, (255, 255, 0), thickness=1)
+
                 # Draw column number
                 if i == 0:
-                    cv2.putText(base_image, str(j), (int(w_p / 2), row),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                outer_font_size, outer_font_color, font_thickness,
-                                cv2.LINE_AA)
-        # Draw ladders
-        for key1, [values1, _] in env.ladders.items():
-            pos = self.pos_dict[key1]
-            cv2.circle(base_image, pos, inner_radius, (0, 0, 0), thickness=2)
-            for v in values1:
-                cv2.line(base_image, pos, self.pos_dict[v], (0, 0, 0), thickness=1)
-        # Draw planned path
-        points = [env.start, ] + env.land + env.coins
-        for i, key1 in enumerate(points[:-1]):
-            key2 = points[i+1]
-            cv2.line(base_image, self.pos_dict[key1], self.pos_dict[key2],
-                     inner_font_color, thickness=1)
-
+                    cv2.putText(
+                        img=base_image,
+                        text=str(j),
+                        org=(int(w_p / 2), row),
+                        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                        fontScale=outer_font_size,
+                        color=outer_font_color,
+                        thickness=font_thickness,
+                        lineType=cv2.LINE_AA
+                    )
         self.base_img = base_image
-        self.img = copy.deepcopy(base_image)
         cv2.imwrite('figs/base_image.png', base_image)
 
-    def draw(self, refresh=False, show=False, mode=None):
-        env = self.env
-        width, height = self.width, self.height
-        if refresh:
-            self.base_img = copy.deepcopy(self.img)
+    def draw(self, show=False, mode=None):
         base_img = copy.deepcopy(self.base_img)
         # Text: mode (MC/TD/PI/VI)
         if mode is not None:
-            delta_w = int(width * self.padding)
-            delta_h = int(height * self.padding / 2)
-            cv2.putText(base_img, mode, (delta_w, delta_h),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        subtitle_size, subtitle_color, font_thickness,
-                        cv2.LINE_AA)
-        pos = self.pos_dict[env.pos]
+            cv2.putText(
+                img=base_img,
+                text=mode,
+                org=(int(self.width * self.padding), int(self.height * self.padding / 2)),
+                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                fontScale=subtitle_size,
+                color=subtitle_color,
+                thickness=font_thickness,
+                lineType=cv2.LINE_AA
+            )
+
+        pos = self.pos_dict[self.env.pos]
         cv2.circle(base_img, pos, inner_radius, (0, 0, 255), thickness=-1)
-        last_pos = self.pos_dict[env.last_pos]
+        last_pos = self.pos_dict[self.env.last_pos]
         cv2.line(self.base_img, pos, last_pos, (0, 0, 255), thickness=1)
-        self.video.write(base_img)
+
         if show:
             cv2.imshow('basic image', base_img)
             if cv2.waitKey(0) == 113:
                 cv2.destroyAllWindows()
+        self.video.write(base_img)
 
     def close(self):
         if self.video is not None:

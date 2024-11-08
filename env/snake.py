@@ -13,13 +13,18 @@ class SnakeDiscreteEnv(gym.Env):
         self.kwargs = kwargs
         self.num_pos = size * size
         print('>>> Size: {}x{}'.format(size, size))
+        print('>>> Number of Coins: ', self.kwargs['num_coin'])
+        print('>>> Number of Barriers: ', self.kwargs['num_barrier'])
+        print('>>> Number of Pools: ', self.kwargs['num_mud'])
+        print('>>> Number of Lands: ', self.kwargs['num_land'])
         self.start = 1
         self.pos = 1
         self.last_pos = 1
 
         self.cv_render = None
-        self.ranges = None
-        self.reset(verbose=True)
+        self.ranges = kwargs['rew_setting']
+        self.prefix = '_'.join([str(x) for x in kwargs['rew_setting']])
+        print('>>> Reward Setting: ', self.prefix)
 
         self.observation_space = Discrete(self.num_pos)
         self.action_space = Discrete(4)
@@ -27,56 +32,34 @@ class SnakeDiscreteEnv(gym.Env):
         print('>>> Action Space: {}'.format(4))
 
     def __initialize(self):
-        kwargs = self.kwargs
-        poses = list(range(self.num_pos))
-        np.random.shuffle(poses)
+        positions = list(range(self.num_pos))
+        np.random.shuffle(positions)
 
-        # self.barriers = [2, 7, 17, 22]
-        # self.land = [11, 12, 13]
-        # self.mud = []
-        # self.coins = [24, ]
-        # self.empty = [0, ]
-        # self.ladders = {}
+        self.barriers = positions[:self.kwargs['num_barrier']]  # Generate barriers
+        positions = positions[self.kwargs['num_barrier']:]
 
-        self.barriers = poses[:kwargs['num_barrier']]  # Generate barriers
-        poses = poses[kwargs['num_barrier']:]
-        self.mud = poses[:kwargs['num_mud']]           # Generate mud area
-        poses = poses[kwargs['num_mud']:]
-        self.land = poses[:kwargs['num_land']]         # Generate land area
-        poses = poses[kwargs['num_land']:]
-        ladders = {}                                   # Generate ladders
-        for i in range(kwargs['num_ladder']):
-            np.random.shuffle(poses)
-            former = poses[0]
-            num_later = np.random.randint(2, 5)
-            later_list = [former, ] + poses[1: num_later]
-            later_prob = np.random.random(num_later)
-            later_prob /= sum(later_prob)
-            ladders[former] = [later_list, later_prob]
-        print('>>> Ladders: ', kwargs['num_ladder'])
-        for i, (key, values) in enumerate(ladders.items()):
-            [values1, values2] = values
-            poses.remove(key)
-            print(
-                '\t{:>3d}: {:<3d} --> '.format(i + 1, key),
-                ['{:>3d}: {:>4.3f}'.format(v1, v2) for v1, v2 in zip(values1, values2)]
-            )
-        self.ladders = ladders
-        self.coins = poses[:kwargs['num_coin']]  # Generate coins
-        self.empty = poses[kwargs['num_coin']:]
+        self.mud = positions[:self.kwargs['num_mud']]           # Generate mud area
+        positions = positions[self.kwargs['num_mud']:]
 
-    def reset(self, reuse=False, verbose=False):
+        self.land = positions[:self.kwargs['num_land']]         # Generate land area
+        positions = positions[self.kwargs['num_land']:]
+
+        self.coins = positions[:self.kwargs['num_coin']]        # Generate coins
+        self.empty = positions[self.kwargs['num_coin']:]
+
+    def reset(self, reuse=False, **kwargs):
         if not reuse:
             self.__initialize()
-            # np.random.shuffle(self.empty)
+            np.random.shuffle(self.empty)
             self.pos = self.start = self.empty[0]
-            self.ranges = (-10.0, -1.0, 0.0, +1.0, +10.0)
         else:
             self.last_pos = self.pos = self.start
-        if verbose:
-            print('>>> Coins: ', self.coins)
-            print('>>> Barriers: ', self.kwargs['num_barrier'])
-            print('>>> Start: ', self.pos, '(king\'s move)')
+
+        print('>>> Start: ', self.pos, '(king\'s move)')
+        print('>>> Coins: ', self.coins)
+        print('>>> Lands: ', self.land)
+        if self.cv_render is not None:
+            self.cv_render.initialize()
         return self.pos
 
     def step(self, action, verbose=False):
@@ -96,13 +79,7 @@ class SnakeDiscreteEnv(gym.Env):
         new_pos = coord2state((new_x, new_y), size)
         if not (0 <= new_x < size and 0 <= new_y < size):
             new_pos = pos
-        if new_pos in self.ladders.keys():
-            random_prob = np.random.random()
-            for pos, prob in zip(*self.ladders[new_pos]):
-                random_prob -= prob
-                if random_prob <= 0.0:
-                    new_pos = pos
-                    break
+
         reward, done, terminated = self.get_reward(pos, new_pos)
         if verbose:
             print('\t--> {:>3d} {} {:>3d} {:>+6.2f} {} {}'.format(

@@ -1,5 +1,6 @@
 import time
 
+from tensorflow.python.ops.gen_math_ops import NotEqual
 from tqdm import tqdm
 import numpy as np
 
@@ -37,14 +38,19 @@ class PolicyIteration:
         v = np.linalg.solve(a, b)
         return v
 
-    def update(self):
-        count, start = 0, time.time()
+    def update(self, prefix=None):
+        counter_step = 0
+        start_time = time.time()
         for iteration in tqdm(range(self.i_iter), desc='Iteration'):
-            count += self.__evaluation(max_iter=self.e_iter)
+            counter_step += self.__evaluation(max_iter=self.e_iter)
+
             if not self.__improvement():
-                print('Iteration: {}({})'.format(iteration, count))
-                print('Time consumption: ', time.time() - start)
+                print('Iteration: {}({})'.format(iteration, counter_step))
+                print('Time consumption: ', time.time() - start_time)
                 break
+
+        if prefix is not None:
+            self.render(prefix=prefix)
         # save_animation(values=self.v_lst, r=self.agent.r, algo=self.name)
         return self.agent
 
@@ -52,41 +58,38 @@ class PolicyIteration:
         self.agent.visual(algo=self.name+'_'+prefix)
 
     def __evaluation(self, max_iter):
-        agent = self.agent
-        count = 0
+        counter_step = 0
         while True:
-            old_v = agent.v
+            old_v = self.agent.v
             new_v = old_v.copy()
-            r = agent.r
-            for s in range(agent.num_obs):
+            for s in range(self.agent.num_obs):
                 q = []
-                for a in range(agent.num_act):
-                    q.append(np.dot(agent.p[a, s, :], r[a, s, :] + self.gamma * old_v))
-                new_v[s] = np.dot(agent.pi[s], np.array(q))
-            agent.v = new_v.copy()
+                for a in range(self.agent.num_act):
+                    q.append(np.dot(self.agent.p[a, s, :],
+                                    self.agent.r[a, s, :] + self.gamma * old_v))
+                new_v[s] = np.dot(self.agent.pi[s], np.array(q))
+            self.agent.v = new_v.copy()
             self.v_lst.append(new_v.copy())
 
-            count += 1
+            counter_step += 1
             diff = np.sqrt(np.sum(np.power(old_v - new_v, 2)))
-            if diff < 1e-6 or count >= max_iter:
+            if diff < 1e-6 or counter_step >= max_iter:
                 break
-        return count
+        return counter_step
 
     def __improvement(self):
-        agent = self.agent
-        new_policy = np.zeros_like(agent.pi)
-        v = agent.v
-        r = agent.r
-        for s in range(agent.num_obs):
+        new_policy = np.zeros_like(self.agent.pi)
+        for s in range(self.agent.num_obs):
             q = []
-            for a in range(agent.num_act):
-                q.append(np.dot(agent.p[a, s, :], r[a, s, :] + self.gamma * v))
+            for a in range(self.agent.num_act):
+                q.append(np.dot(self.agent.p[a, s, :],
+                                self.agent.r[a, s, :] + self.gamma * self.agent.v))
             q = np.array(q)
-            agent.q[s, :] = q[:]
+            self.agent.q[s, :] = q[:]
             ids = np.argwhere(q == q.max()).squeeze(axis=1)
             for idx in ids:
                 new_policy[s, idx] = 1.0 / len(ids)
-        if np.all(np.equal(new_policy, agent.pi)):
+        if np.all(np.equal(new_policy, self.agent.pi)):
             return False
-        agent.pi = new_policy
+        self.agent.pi = new_policy
         return True
